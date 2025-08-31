@@ -1,6 +1,7 @@
 # 📝 Portfolio Project UniStay
 
-                                     Team Formation & Idea Development
+Team Formation & Idea Development
+
 1447 (Summer 2025) 
 
 UniStay – Students accommodation 
