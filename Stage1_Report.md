@@ -1,4 +1,4 @@
-# 📝 Portfolio Project UniStay
+# 📝 UniStay
 
 Team Formation & Idea Development
 
