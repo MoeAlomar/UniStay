@@ -1,4 +1,7 @@
+
 # IDE files
 .idea/
 *.iml
 *.xml
+# Virtual Environment
+venv/
