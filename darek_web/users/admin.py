@@ -1,25 +1,18 @@
-# users/admin.py
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import User
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    """Define admin model for custom User with extra fields."""
+    list_display = ("username", "email", "role", "gender", "get_is_email_verified", "is_active")
+    list_filter = ("role", "gender", "is_active")  # Removed 'is_email_verified' to fix E116
+
     fieldsets = BaseUserAdmin.fieldsets + (
-        ("Darek Role & Verification", {
-            'fields': (
-                'phone_number', 'is_student', 'is_landlord', 'is_hotel_partner',
-                'email_verified', 'phone_verified',
-            ),
-        }),
+        ("UniStay Info", {"fields": ("role", "gender", "phone", "is_email_verified")}),
     )
-    add_fieldsets = BaseUserAdmin.add_fieldsets + (
-        ("Darek Role & Verification", {
-            'classes': ('wide',),
-            'fields': (
-                'phone_number', 'is_student', 'is_landlord', 'is_hotel_partner',
-                'email_verified', 'phone_verified',
-            ),
-        }),
-    )
+
+    def get_is_email_verified(self, obj):
+        return obj.is_email_verified
+
+    get_is_email_verified.boolean = True  # Displays as a boolean icon in admin
+    get_is_email_verified.short_description = "Email Verified"  # Column header

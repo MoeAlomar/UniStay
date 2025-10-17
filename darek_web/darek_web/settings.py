@@ -31,13 +31,28 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
+    'django.contrib.admin', 'django.contrib.auth', 'django.contrib.contenttypes',
+    'django.contrib.sessions', 'django.contrib.messages', 'django.contrib.staticfiles',
+
+    # third-party
+    "rest_framework",
+    "django_filters",
+
+    # project apps
+    'users', 'listings', 'messaging', 'reviews', 'roommates',
 ]
+
+AUTH_USER_MODEL = 'users.User'  # tell Django to use your custom model
+
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+    "DEFAULT_FILTER_BACKENDS": [
+        "django_filters.rest_framework.DjangoFilterBackend",
+    ],
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -51,13 +66,26 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'darek_web.urls'
 
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'grimmdororo@gmail.com'  # Replace with your actual Gmail
+EMAIL_HOST_PASSWORD = 'jhhy qogl vbxh ggxu'  # Not your regular password—see below
+DEFAULT_FROM_EMAIL = 'grimmdororo@gmail.com'  # Same as EMAIL_HOST_USER
+
+# Keep this, but update to your actual frontend URL if different:
+FRONTEND_URL = 'http://localhost:3000'  # For verification links; env var in prod
+
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],  # Add this if you have a templates folder; otherwise keep as []
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
+                'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
@@ -74,8 +102,12 @@ WSGI_APPLICATION = 'darek_web.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'darekDB',           # e.g., 'unistay_db'
+        'USER': 'postgres',                # Usually 'postgres'
+        'PASSWORD': 'darekDB',  # The password you set for PostgreSQL
+        'HOST': '127.0.0.1',               # Or '127.0.0.1'
+        'PORT': '5432',                    # The default port for PostgreSQL
     }
 }
 
@@ -104,7 +136,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Riyadh'
 
 USE_I18N = True
 
