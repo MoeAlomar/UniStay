@@ -79,6 +79,7 @@ class ListingViewSet(ModelViewSet):
         else:
             queryset = Listing.objects.filter(status__in=['AVAILABLE', 'RESERVED'])
         if query:
+            # This query search looks for the searched word in all three field, which is inefficient should be changed later!
             queryset = queryset.filter(Q(title__icontains=query) | Q(description__icontains=query) | Q(address__icontains=query))
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
