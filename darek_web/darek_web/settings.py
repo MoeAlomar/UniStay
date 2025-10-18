@@ -75,7 +75,7 @@ EMAIL_HOST_PASSWORD = 'jhhy qogl vbxh ggxu'  # Not your regular password—see b
 DEFAULT_FROM_EMAIL = 'grimmdororo@gmail.com'  # Same as EMAIL_HOST_USER
 
 # Keep this, but update to your actual frontend URL if different:
-FRONTEND_URL = 'http://localhost:3000'  # For verification links; env var in prod
+FRONTEND_URL = 'http://127.0.0.1:8000'  # For verification links; env var in prod
 
 
 TEMPLATES = [
