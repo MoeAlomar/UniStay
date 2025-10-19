@@ -15,7 +15,6 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
@@ -27,23 +26,18 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
-
 # Application definition
-
 INSTALLED_APPS = [
     'django.contrib.admin', 'django.contrib.auth', 'django.contrib.contenttypes',
     'django.contrib.sessions', 'django.contrib.messages', 'django.contrib.staticfiles',
-
     # third-party
     "rest_framework",
     "django_filters",
-
     # project apps
     'users', 'listings', 'messaging', 'reviews', 'roommates',
 ]
 
 AUTH_USER_MODEL = 'users.User'  # tell Django to use your custom model
-
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
@@ -70,18 +64,11 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'grimmdororo@gmail.com'  # Replace with your actual Gmail
-EMAIL_HOST_PASSWORD = 'jhhy qogl vbxh ggxu'  # Not your regular password—see below
-DEFAULT_FROM_EMAIL = 'grimmdororo@gmail.com'  # Same as EMAIL_HOST_USER
-
-# Keep this, but update to your actual frontend URL if different:
-FRONTEND_URL = 'http://127.0.0.1:8000'  # For verification links; env var in prod
-
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],  # Add this if you have a templates folder; otherwise keep as []
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -96,25 +83,21 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'darek_web.wsgi.application'
 
-
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'darekDB',           # e.g., 'unistay_db'
-        'USER': 'postgres',                # Usually 'postgres'
-        'PASSWORD': 'darekDB',  # The password you set for PostgreSQL
-        'HOST': '127.0.0.1',               # Or '127.0.0.1'
-        'PORT': '5432',                    # The default port for PostgreSQL
+        'NAME': 'darekDB',
+        'USER': 'postgres',
+        'PASSWORD': 'darekDB',
+        'HOST': '127.0.0.1',
+        'PORT': '5432',
     }
 }
 
-
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
-
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -131,24 +114,36 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'listings': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+        },
+    },
+}
+
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
-
 LANGUAGE_CODE = 'en-us'
-
 TIME_ZONE = 'Asia/Riyadh'
-
 USE_I18N = True
-
 USE_TZ = True
-
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
-
 STATIC_URL = 'static/'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Wathq API Key
+WATHQ_API_KEY = "1nCMGHcNMePWKjUlJH7GJqG04n9IVBIo"

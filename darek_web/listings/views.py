@@ -14,7 +14,7 @@ class ListingViewSet(ModelViewSet):
     serializer_class = ListingSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['status', 'female_only', 'roommates_allowed', 'type', 'student_discount']
+    filterset_fields = ['status', 'female_only', 'roommates_allowed', 'type', 'student_discount', 'district']
 
     def get_queryset(self):
         user = self.request.user
@@ -79,8 +79,11 @@ class ListingViewSet(ModelViewSet):
         else:
             queryset = Listing.objects.filter(status__in=['AVAILABLE', 'RESERVED'])
         if query:
-            # This query search looks for the searched word in all three field, which is inefficient should be changed later!
-            queryset = queryset.filter(Q(title__icontains=query) | Q(description__icontains=query) | Q(address__icontains=query))
+            queryset = queryset.filter(
+                Q(title__icontains=query) |
+                Q(description__icontains=query) |
+                Q(district__icontains=query)
+            )
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
@@ -104,10 +107,10 @@ class ListingViewSet(ModelViewSet):
 
         class ListingFilter(filters.FilterSet):
             max_price = filters.NumberFilter(field_name='price', lookup_expr='lte')
-            address = filters.CharFilter(field_name='address', lookup_expr='icontains')
+            district = filters.CharFilter(field_name='district', lookup_expr='exact')
 
             class Meta:
                 model = Listing
-                fields = ['status', 'female_only', 'roommates_allowed', 'type', 'student_discount', 'max_price', 'address']
+                fields = ['status', 'female_only', 'roommates_allowed', 'type', 'student_discount', 'max_price', 'district']
 
         return ListingFilter
