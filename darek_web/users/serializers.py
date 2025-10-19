@@ -63,8 +63,6 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 # UPDATED SERIALIZER: Now includes the local time field.
 class UserSerializer(serializers.ModelSerializer):
-    last_login_local = serializers.SerializerMethodField()
-
     class Meta:
         model = User
         fields = (
@@ -78,7 +76,6 @@ class UserSerializer(serializers.ModelSerializer):
             "phone",
             "is_email_verified",
             "last_login",  # The original UTC time from the database
-            "last_login_local"  # Our new, correctly formatted time
         )
         read_only_fields = ("id", "email", "role","gender", "is_email_verified",)
 

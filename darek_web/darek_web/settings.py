@@ -64,6 +64,13 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'grimmdororo@gmail.com'  # Replace with your actual Gmail
+EMAIL_HOST_PASSWORD = 'jhhy qogl vbxh ggxu'  # Not your regular password—see below
+DEFAULT_FROM_EMAIL = 'grimmdororo@gmail.com'  # Same as EMAIL_HOST_USER
+
+# Keep this, but update to your actual frontend URL if different:
+FRONTEND_URL = 'http://127.0.0.1:8000'  # For verification links; env var in prod
+
 
 TEMPLATES = [
     {
@@ -112,23 +119,6 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
-
-
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-        },
-    },
-    'loggers': {
-        'listings': {
-            'handlers': ['console'],
-            'level': 'DEBUG',
-        },
-    },
-}
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
