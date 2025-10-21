@@ -1,7 +1,7 @@
 import requests
 import jwt
 
-AUTH_URL = "http://127.0.0.1:8000/users/"  # Updated base to /users/
+AUTH_URL = "http://127.0.0.1:8000/users/"  # Base for auth/users
 LISTINGS_URL = "http://127.0.0.1:8000/listings/"
 REVIEWS_URL = "http://127.0.0.1:8000/reviews/"
 
@@ -19,11 +19,19 @@ def register_user(username, first_name, last_name, email, password, role='studen
     }
     res = requests.post(f"{AUTH_URL}register/", json=data)
     if res.status_code == 400:
-        print("⚠️ User already exists or validation error. Continuing...")
-        print(res.json())
+        print("⚠️ User already exists. Username: {}, Email: {}".format(username, email))
+        # No ID returned; use login to get it
+        return None
     else:
         res.raise_for_status()
         print("✅ User created:", res.json())
+        return res.json().get("id")
+
+def get_user_id(token):
+    """Retrieve user ID from profile endpoint."""
+    headers = {"Authorization": f"Bearer {token}"}
+    res = requests.get(f"{AUTH_URL}profile/", headers=headers)
+    res.raise_for_status()
     return res.json().get("id")
 
 def login_user(email, password):
@@ -38,16 +46,17 @@ def login_user(email, password):
     refresh_token = tokens["refresh"]
     decoded = jwt.decode(access_token, options={"verify_signature": False})
     print("✅ Logged in. Role:", decoded.get("role", "Unknown"))
-    return access_token, refresh_token, decoded["user_id"]
+    user_id = get_user_id(access_token)  # Get ID from profile
+    return access_token, refresh_token, user_id
 
 def create_listing(access_token, owner_id):
     print("\n🏠 Creating Listing...")
     headers = {"Authorization": f"Bearer {access_token}"}
     listing_data = {
-        "owner": owner_id,  # Required: User ID as PrimaryKey
+        "owner": owner_id,
         "id_type": "National_ID",
-        "owner_identification_id": "0000000000",  # Bypass value
-        "deed_number": "0000000000",  # Bypass value
+        "owner_identification_id": "0000000000",
+        "deed_number": "0000000000",
         "title": "Test Listing",
         "description": "A nice test apartment",
         "price": 1500.0,
@@ -56,7 +65,7 @@ def create_listing(access_token, owner_id):
         "roommates_allowed": True,
         "student_discount": True,
         "status": "AVAILABLE",
-        "district": "ISHBILIYA",  # Valid choice; adjust if your districts list uses a different format (e.g., check admin dropdown for exact string)
+        "district": "ISHBILIYA",
         "location_link": "https://maps.example.com/test"
     }
     res = requests.post(LISTINGS_URL, json=listing_data, headers=headers)
@@ -65,13 +74,15 @@ def create_listing(access_token, owner_id):
         return res.json().get("id")
     else:
         print("❌ Failed to create listing:", res.status_code, res.json())
-        res.raise_for_status()
+        raise requests.exceptions.HTTPError(res)
 
 def create_review(access_token, listing_id):
     print(f"\n💬 Creating Review for listing {listing_id}...")
     url = f"{REVIEWS_URL}listings/{listing_id}/"
     headers = {'Authorization': f'Bearer {access_token}'}
     payload = {
+        "target_type": "LISTING",  # Added: Explicitly set for fallback/test
+        "target_listing": listing_id,  # Added: Explicitly set for fallback/test
         "rating": 5,
         "comment": "Amazing place!"
     }
@@ -85,7 +96,7 @@ def create_review(access_token, listing_id):
             print("❌ Failed to create review:", res.status_code, res.json())
         except Exception:
             print("❌ Failed to create review:", res.status_code, res.text)
-        res.raise_for_status()
+        raise requests.exceptions.HTTPError(res)
 
 # === RUN TEST FLOW ===
 
@@ -98,7 +109,7 @@ landlord_token, _, landlord_user_id = login_user(landlord_email, "testpass")
 listing_id = create_listing(landlord_token, landlord_user_id)
 
 # Register and log in student (reviewer)
-student_email = "student@example.edu.sa"  # .edu.sa for student
+student_email = "student@example.edu.sa"
 student_id = register_user("studentuser", "Student", "Test", student_email, "testpass", role="student")
 student_token, _, student_user_id = login_user(student_email, "testpass")
 

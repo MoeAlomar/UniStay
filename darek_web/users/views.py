@@ -1,4 +1,4 @@
-# users/views.py
+# users/views.py (Improved)
 from django.contrib.auth import get_user_model
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
@@ -11,27 +11,11 @@ from django.shortcuts import get_object_or_404
 
 User = get_user_model()
 
-#Old View if activated don't forget to change the urls and delete the NEW serialized!!!!:
-
-# class CustomTokenObtainPairView(TokenObtainPairView):
-#     def post(self, request, *args, **kwargs):
-#         serializer = self.get_serializer(data=request.data)
-#         serializer.is_valid(raise_exception=True)
-#         user = serializer.validated_data['user']  # Get user from validated serializer
-#         response = super().post(request, *args, **kwargs)
-#         user_serializer = UserSerializer(user)
-#         response.data['user'] = user_serializer.data
-#         response.data['redirect_url'] = (
-#             '/listings/dashboard/' if user.role == 'landlord' else '/home/'
-#         )
-#         return Response(response.data)
-
-
-# NEW, SIMPLER VIEW: This points to our custom serializer.
+# IMPROVED: Uses the custom serializer for login, which now includes role in token claims.
 class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
 
-# Your other views are fine and remain the same.
+# Your other views are fine; minor improvement: Added success status to VerifyEmailView responses.
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = RegisterSerializer
@@ -57,6 +41,6 @@ class VerifyEmailView(generics.GenericAPIView):
         if default_token_generator.check_token(user, token):
             user.is_email_verified = True
             user.save()
-            return Response({"detail": "Email verified successfully."})
+            return Response({"detail": "Email verified successfully."}, status=status.HTTP_200_OK)
         else:
             return Response({"detail": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
