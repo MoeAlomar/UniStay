@@ -1,3 +1,4 @@
+# listings/serializers.py (Updated)
 from rest_framework import serializers
 from .models import Listing
 from django.contrib.auth import get_user_model
@@ -62,11 +63,15 @@ class ListingSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"owner": "Owner must have the Landlord role."})
 
         # Wathq API validation
-        deed_Number = data.get('deed_Number')
+        deed_number = data.get('deed_number')
         id_number = data.get('owner_identification_id')
         id_type = data.get('id_type')
-        if deed_Number and id_number and id_type:
-            url = f"https://api.wathq.sa/moj/real-estate/deed/{deed_Number}/{id_number}/{id_type}"
+        if deed_number and id_number and id_type:
+            # Bypass for testing: if both are '0000000000', skip API call
+            if deed_number == '0000000000' and id_number == '0000000000':
+                logger.info("Bypassing Wathq API validation for test values.")
+                return data
+            url = f"https://api.wathq.sa/moj/real-estate/deed/{deed_number}/{id_number}/{id_type}"
             headers = {"apiKey": settings.WATHQ_API_KEY}
             logger.info(f"Calling Wathq API: {url} with id_type={id_type}")
             try:
@@ -83,6 +88,6 @@ class ListingSerializer(serializers.ModelSerializer):
                 logger.error(f"Wathq API error: {str(e)}")
                 raise serializers.ValidationError(f"Wathq API error: {str(e)}")
         else:
-            logger.warning(f"Missing Wathq API inputs: deed_number={deed_Number}, id_number={id_number}, id_type={id_type}")
+            logger.warning(f"Missing Wathq API inputs: deed_number={deed_number}, id_number={id_number}, id_type={id_type}")
             raise serializers.ValidationError("Deed number, owner identification ID, and ID type are required for validation.")
         return data

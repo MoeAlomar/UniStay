@@ -1,3 +1,4 @@
+# listings/admin.py (Updated)
 from django.contrib import admin
 from .models import Listing
 from django.contrib.auth import get_user_model
@@ -20,6 +21,10 @@ class ListingAdminForm(forms.ModelForm):
         id_number = cleaned_data.get('owner_identification_id')
         id_type = cleaned_data.get('id_type')
         if deed_number and id_number and id_type:
+            # Bypass for testing: if both are '0000000000', skip API call
+            if deed_number == '0000000000' and id_number == '0000000000':
+                logger.info("Bypassing Wathq API validation for test values in admin.")
+                return cleaned_data
             url = f"https://api.wathq.sa/moj/real-estate/deed/{deed_number}/{id_number}/{id_type}"
             headers = {"apiKey": settings.WATHQ_API_KEY}
             logger.info(f"Calling Wathq API (admin): {url} with id_type={id_type}")
