@@ -1,10 +1,11 @@
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q
+from django.db import IntegrityError
 from .models import Review
 from .serializers import ReviewSerializer
 from users.models import User
@@ -17,10 +18,19 @@ class ReviewViewSet(ModelViewSet):
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['target_type', 'rating']
 
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        if self.action == 'reviews_for_listing':
+            context['listing_id'] = self.kwargs.get('listing_id')
+            context['target_type'] = Review.TargetType.LISTING
+        elif self.action == 'reviews_for_user':
+            context['user_id'] = self.kwargs.get('user_id')
+            context['target_type'] = Review.TargetType.USER
+        return context
+
     def get_queryset(self):
         queryset = super().get_queryset()
         user = self.request.user
-        # Public: All reviews visible, but filter based on action
         if self.action == 'my_reviews':
             return queryset.filter(author=user)
         elif self.action == 'reviews_for_user':
@@ -29,7 +39,6 @@ class ReviewViewSet(ModelViewSet):
         elif self.action == 'reviews_for_listing':
             listing_id = self.kwargs.get('listing_id')
             return queryset.filter(target_type=Review.TargetType.LISTING, target_listing_id=listing_id)
-        # General list: Filter by query params if provided
         target_type = self.request.query_params.get('target_type')
         target_id = self.request.query_params.get('target_id')
         if target_type and target_id:
@@ -40,7 +49,14 @@ class ReviewViewSet(ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
+        try:
+            serializer.save(author=self.request.user)
+        except IntegrityError as e:
+            if 'unique_listing_review' in str(e):
+                raise ValidationError({"detail": "You have already reviewed this listing."})
+            elif 'unique_user_review' in str(e):
+                raise ValidationError({"detail": "You have already reviewed this user."})
+            raise
 
     def perform_update(self, serializer):
         if self.request.user != self.get_object().author:
@@ -54,31 +70,37 @@ class ReviewViewSet(ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='my')
     def my_reviews(self, request):
-        """Get reviews written by the current user."""
         return self.list(request)
 
     @action(detail=False, methods=['get', 'post'], url_path='users/(?P<user_id>[^/.]+)')
     def reviews_for_user(self, request, user_id=None):
-        """Get or create reviews for a specific user."""
         try:
-            User.objects.get(pk=user_id)  # Validate user exists
+            User.objects.get(pk=user_id)
         except User.DoesNotExist:
             raise PermissionDenied("User not found.")
         if request.method == 'POST':
-            request.data['target_type'] = Review.TargetType.USER
-            request.data['target_user'] = user_id
-            return self.create(request)
+            mutable_data = request.data.copy()
+            mutable_data['target_type'] = Review.TargetType.USER
+            mutable_data['target_user'] = user_id
+            serializer = self.get_serializer(data=mutable_data, context=self.get_serializer_context())
+            serializer.is_valid(raise_exception=True)
+            self.perform_create(serializer)
+            headers = self.get_success_headers(serializer.data)
+            return Response(serializer.data, status=201, headers=headers)
         return self.list(request)
 
     @action(detail=False, methods=['get', 'post'], url_path='listings/(?P<listing_id>[^/.]+)')
     def reviews_for_listing(self, request, listing_id=None):
-        """Get or create reviews for a specific listing."""
         try:
-            Listing.objects.get(pk=listing_id)  # Validate listing exists
+            Listing.objects.get(pk=listing_id)
         except Listing.DoesNotExist:
             raise PermissionDenied("Listing not found.")
         if request.method == 'POST':
-            request.data['target_type'] = Review.TargetType.LISTING
-            request.data['target_listing'] = listing_id
-            return self.create(request)
+            mutable_data = request.data.copy()
+            mutable_data['target_type'] = Review.TargetType.LISTING
+            serializer = self.get_serializer(data=mutable_data, context=self.get_serializer_context())
+            serializer.is_valid(raise_exception=True)
+            self.perform_create(serializer)
+            headers = self.get_success_headers(serializer.data)
+            return Response(serializer.data, status=201, headers=headers)
         return self.list(request)
