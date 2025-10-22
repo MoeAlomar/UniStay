@@ -1,8 +1,10 @@
+# roommates/serializers.py
 from rest_framework import serializers
 from .models import RoommatePost, RoommateRequest, RoommateGroup
 from users.serializers import UserSerializer
 from listings.serializers import ListingSerializer
 from messaging.serializers import ConversationSerializer
+from users.models import User
 
 
 class RoommatePostSerializer(serializers.ModelSerializer):

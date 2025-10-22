@@ -52,11 +52,8 @@ class ReviewViewSet(ModelViewSet):
         try:
             serializer.save(author=self.request.user)
         except IntegrityError as e:
-            if 'unique_listing_review' in str(e):
-                raise ValidationError({"detail": "You have already reviewed this listing."})
-            elif 'unique_user_review' in str(e):
-                raise ValidationError({"detail": "You have already reviewed this user."})
-            raise
+            # Handle any IntegrityError with a generic message
+            raise ValidationError({"non_field_errors": ["A review for this target already exists."]})
 
     def perform_update(self, serializer):
         if self.request.user != self.get_object().author:

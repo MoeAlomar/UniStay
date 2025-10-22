@@ -28,7 +28,7 @@ class ReviewSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, data):
-        # Ensure target_type is set, defaulting to LISTING if context implies it
+        request = self.context['request']
         target_type = data.get('target_type', self.context.get('target_type'))
         if not target_type:
             raise serializers.ValidationError({"target_type": "This field is required."})
@@ -52,11 +52,17 @@ class ReviewSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({"target_listing": "Required for LISTING reviews."})
             if target_user:
                 raise serializers.ValidationError({"target_user": "Must be null for LISTING reviews."})
+            # Check for duplicate listing review
+            if Review.objects.filter(author=request.user, target_listing=target_listing).exists():
+                raise serializers.ValidationError({"non_field_errors": ["You have already reviewed this listing."]})
         elif target_type == Review.TargetType.USER:
             if not target_user:
                 raise serializers.ValidationError({"target_user": "Required for USER reviews."})
             if target_listing:
                 raise serializers.ValidationError({"target_listing": "Must be null for USER reviews."})
+            # Check for duplicate user review
+            if Review.objects.filter(author=request.user, target_user=target_user).exists():
+                raise serializers.ValidationError({"non_field_errors": ["You have already reviewed this user."]})
         else:
             raise serializers.ValidationError({"target_type": "Invalid target type."})
 

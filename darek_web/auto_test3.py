@@ -249,7 +249,7 @@ try:
 
     # Accept Roommate Request as student1
     accept_response = accept_roommate_request(student1_token, request_id)
-    group_id = accept_response.get('group_id') if accept_response else None  # Assuming accept returns group_id
+    group_id = accept_response.get('group_id') if accept_response else None
 
     # Create Roommate Group as student2
     group2_id = create_roommate_group(student2_token, listing_id)
