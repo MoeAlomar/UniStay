@@ -2,8 +2,7 @@ import requests
 import jwt
 
 AUTH_URL = "http://127.0.0.1:8000/users/"
-LISTINGS_URL = "http://127.0.0.1:8000/listings/"
-REVIEWS_URL = "http://127.0.0.1:8000/reviews/"
+MESSAGING_URL = "http://127.0.0.1:8000/messaging/"
 
 def register_user(username, first_name, last_name, email, password, role='student', gender='male', phone='+966123456789'):
     print(f"\n🔐 Registering {email} as {role}...")
@@ -59,99 +58,108 @@ def login_user(email, password):
         print("❌ Failed to login:", res.status_code, res.text)
         raise
 
-def create_listing(access_token, owner_id):
-    print("\n🏠 Creating Listing...")
+def get_twilio_token(access_token):
+    print("\n🔑 Getting Twilio Access Token...")
     headers = {"Authorization": f"Bearer {access_token}"}
-    listing_data = {
-        "owner": owner_id,
-        "id_type": "National_ID",
-        "owner_identification_id": "0000000000",
-        "deed_number": "0000000000",
-        "title": "Test Listing",
-        "description": "A nice test apartment",
-        "price": 1500.0,
-        "type": "APARTMENT",
-        "female_only": False,
-        "roommates_allowed": True,
-        "student_discount": True,
-        "status": "AVAILABLE",
-        "district": "ISHBILIYA",
-        "location_link": "https://maps.example.com/test"
-    }
-    res = requests.post(LISTINGS_URL, json=listing_data, headers=headers)
+    res = requests.get(f"{MESSAGING_URL}twilio-token/", headers=headers)
     try:
-        if res.status_code == 201:
-            print("✅ Listing created:", res.json())
-            return res.json().get("id")
+        res.raise_for_status()
+        token = res.json().get("token")
+        print("✅ Twilio token obtained")
+        return token
+    except requests.exceptions.HTTPError as e:
+        print("❌ Failed to get Twilio token:", res.status_code, res.text)
+        raise
+
+def create_conversation(access_token, other_user_id):
+    print(f"\n💬 Creating Conversation with user {other_user_id}...")
+    headers = {"Authorization": f"Bearer {access_token}"}
+    data = {"other_user_id": other_user_id}
+    res = requests.post(f"{MESSAGING_URL}conversations/create/", json=data, headers=headers)
+    try:
+        if res.status_code in [200, 201]:
+            print("✅ Conversation created or found:", res.json())
+            return res.json().get("conversation_sid")
         else:
-            print("❌ Failed to create listing:", res.status_code, res.text)
+            print("❌ Failed to create conversation:", res.status_code, res.text)
             raise requests.exceptions.HTTPError(res)
     except requests.exceptions.HTTPError as e:
-        print("❌ Failed to create listing:", res.status_code, res.text)
+        print("❌ Failed to create conversation (exception):", res.status_code, res.text)
         raise
 
-def create_review(access_token, listing_id):
-    print(f"\n💬 Creating Review for listing {listing_id}...")
-    url = f"{REVIEWS_URL}listings/{listing_id}/"
-    headers = {'Authorization': f'Bearer {access_token}'}
-    payload = {
-        "rating": 5,
-        "comment": "Amazing place!"
-    }
-    res = requests.post(url, headers=headers, json=payload)
+def send_message(access_token, conversation_sid, body="Test message!"):
+    print(f"\n📤 Sending Message to conversation {conversation_sid}...")
+    headers = {"Authorization": f"Bearer {access_token}"}
+    data = {"conversation_sid": conversation_sid, "body": body}
+    res = requests.post(f"{MESSAGING_URL}messages/send/", json=data, headers=headers)  # Assumes you added this endpoint as per earlier suggestion
     try:
         if res.status_code == 201:
-            review = res.json()
-            print("✅ Review created:", review)
-            return review["id"]
+            print("✅ Message sent:", res.json())
+            return res.json().get("sid")
         else:
-            try:
-                error = res.json()
-                print("❌ Failed to create review:", res.status_code, error)
-                if res.status_code == 400 and "detail" in error and "already reviewed" in error["detail"]:
-                    print("✅ Duplicate review detected as expected")
-                    return None
-                raise requests.exceptions.HTTPError(res)
-            except requests.exceptions.JSONDecodeError:
-                print("❌ Failed to create review (non-JSON response):", res.status_code, res.text)
-                raise requests.exceptions.HTTPError(res)
+            print("❌ Failed to send message:", res.status_code, res.text)
+            raise requests.exceptions.HTTPError(res)
     except requests.exceptions.HTTPError as e:
-        print("❌ Failed to create review (exception):", res.status_code, res.text)
+        print("❌ Failed to send message (exception):", res.status_code, res.text)
         raise
 
-def delete_listing(access_token, listing_id):
-    print(f"\n🗑️ Deleting Listing {listing_id}...")
+def mark_message_read(access_token, message_sid):
+    print(f"\n📥 Marking Message {message_sid} as Read...")
     headers = {"Authorization": f"Bearer {access_token}"}
-    res = requests.delete(f"{LISTINGS_URL}{listing_id}/", headers=headers)
-    if res.status_code == 204:
-        print("✅ Listing deleted")
-    else:
-        print("❌ Failed to delete listing:", res.status_code, res.text)
-        raise requests.exceptions.HTTPError(res)
+    data = {"message_sid": message_sid}
+    res = requests.post(f"{MESSAGING_URL}messages/mark-read/", json=data, headers=headers)
+    try:
+        if res.status_code == 200:
+            print("✅ Message marked as read:", res.json())
+        else:
+            print("❌ Failed to mark read:", res.status_code, res.text)
+            raise requests.exceptions.HTTPError(res)
+    except requests.exceptions.HTTPError as e:
+        print("❌ Failed to mark read (exception):", res.status_code, res.text)
+        raise
 
 # === RUN TEST FLOW ===
 try:
-    # Register and log in landlord
-    landlord_email = "landlord@example.com"
-    landlord_id = register_user("landlorduser", "Landlord", "Test", landlord_email, "testpass", role="landlord")
-    landlord_token, _, landlord_user_id = login_user(landlord_email, "testpass")
+    # Register and log in student1 (initiator)
+    student1_email = "student1@example.edu.sa"
+    register_user("student1", "Student", "One", student1_email, "testpass", role="student")
+    student1_token, _, student1_id = login_user(student1_email, "testpass")
 
-    # Create Listing as landlord
-    listing_id = create_listing(landlord_token, landlord_user_id)
+    # Register and log in student2 (target for roommate chat) or landlord
+    student2_email = "student2@example.edu.sa"
+    register_user("student2", "Student", "Two", student2_email, "testpass", role="student")  # Or change to 'landlord' for testing that flow
+    student2_token, _, student2_id = login_user(student2_email, "testpass")
 
-    # Register and log in student (reviewer)
-    student_email = "student@example.edu.sa"
-    student_id = register_user("studentuser", "Student", "Test", student_email, "testpass", role="student")
-    student_token, _, student_user_id = login_user(student_email, "testpass")
+    # Get Twilio tokens (for potential JS simulation, but here just to test endpoint)
+    get_twilio_token(student1_token)
+    get_twilio_token(student2_token)
 
-    # Create Review for the Listing as student
-    review_id = create_review(student_token, listing_id)
+    # Create Conversation as student1 with student2
+    conversation_sid = create_conversation(student1_token, student2_id)
 
-    # Test duplicate review prevention
-    print("\n🧪 Testing duplicate review prevention...")
+    # Test duplicate conversation prevention
+    print("\n🧪 Testing duplicate conversation prevention...")
     try:
-        create_review(student_token, listing_id)
+        create_conversation(student1_token, student2_id)
+        print("✅ Returned existing conversation as expected")
     except requests.exceptions.HTTPError as e:
-        print("✅ Duplicate prevented as expected:", str(e))
+        print("❌ Unexpected error on duplicate:", str(e))
+
+    # Send a message as student1 (assumes SendMessageView is implemented)
+    send_message(student1_token, conversation_sid, "Hello from student1!")
+
+    # Send a reply as student2
+    send_message(student2_token, conversation_sid, "Hi back from student2!")
+
+    message1_sid = send_message(student1_token, conversation_sid, "Hello from student1!")
+    send_message(student2_token, conversation_sid, "Hi back from student2!")
+    # Mark the first message as read by student2
+    mark_message_read(student2_token, message1_sid)
+
+    # Optionally: Add a fetch messages test if you have a get_messages endpoint
+    # For now, manually check in admin or Twilio dashboard after running
+
+except Exception as e:
+    print("❌ Test flow failed:", str(e))
 finally:
-    pass
+    print("\n🧹 Cleanup: In a real test, delete test users/conversations if needed")

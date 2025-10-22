@@ -147,3 +147,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Wathq API Key
 WATHQ_API_KEY = "1nCMGHcNMePWKjUlJH7GJqG04n9IVBIo"
+
+
+
+# Twilio API Key
+TWILIO_ACCOUNT_SID = 'AC0a96fceaf733033c7c4e6d859055f8a3'  # From Twilio dashboard
+TWILIO_AUTH_TOKEN = 'e4d3eae9ddf3f57d9db0f546f1219b68'     # From Twilio dashboard (used for backend API calls)
+TWILIO_API_KEY_SID = 'SKd661182db3b16b9edc3a7cee7626dabf'  # From the API key you created
+TWILIO_API_SECRET = 'K4xQkXZ9M1ANhdQOm0QH26mX4W2mNbre'     # From the API key
+TWILIO_CONVERSATIONS_SERVICE_SID = 'IS807444d3b5b745439b2530992d354748'  # From the Conversations Service in dashboard
