@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+from corsheaders.defaults import default_headers
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -24,7 +25,7 @@ SECRET_KEY = 'django-insecure-v5-fej7w)h9#n*hs9zzwag_us+p)daewkr-19+=fp4%cm3hewg
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
 
 # Application definition
 INSTALLED_APPS = [
@@ -33,6 +34,7 @@ INSTALLED_APPS = [
     # third-party
     "rest_framework",
     "django_filters",
+    "corsheaders",
     # project apps
     'users', 'listings', 'messaging', 'reviews', 'roommates',
 ]
@@ -51,6 +53,7 @@ REST_FRAMEWORK = {
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -65,11 +68,27 @@ EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'grimmdororo@gmail.com'  # Replace with your actual Gmail
-EMAIL_HOST_PASSWORD = 'jhhy qogl vbxh ggxu'  # Not your regular password—see below
+# Not your regular password—see below
+EMAIL_HOST_PASSWORD = 'jhhy qogl vbxh ggxu'
 DEFAULT_FROM_EMAIL = 'grimmdororo@gmail.com'  # Same as EMAIL_HOST_USER
 
-# Keep this, but update to your actual frontend URL if different:
-FRONTEND_URL = 'http://127.0.0.1:8000'  # For verification links; env var in prod
+# Frontend URL used in emails/links
+FRONTEND_URL = 'http://127.0.0.1:5173'
+
+# CORS configuration to allow the Vite dev server
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+]
+CORS_ALLOW_CREDENTIALS = True
+
+# Ensure common headers are allowed for preflight
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    'authorization',
+    'content-type',
+]
 
 
 TEMPLATES = [
@@ -94,24 +113,23 @@ WSGI_APPLICATION = 'darek_web.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 
-
-#DATABASES = {
- #   'default': {
-  #      'ENGINE': 'django.db.backends.postgresql',
-   #     'NAME': 'darekDB',
-    #    'USER': 'postgres',
-     #   'PASSWORD': 'darekDB',
-      #  'HOST': '127.0.0.1',
-       # 'PORT': '5432',
-    #}
-#}
-
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'darekDB',
+        'USER': 'postgres',
+        'PASSWORD': 'darekDB',
+        'HOST': '127.0.0.1',
+        'PORT': '5432',
     }
 }
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -147,6 +165,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Wathq API Key
 WATHQ_API_KEY = "1nCMGHcNMePWKjUlJH7GJqG04n9IVBIo"
-
-
-
+# Twilio API Key
+TWILIO_ACCOUNT_SID = 'AC0a96fceaf733033c7c4e6d859055f8a3'  # From Twilio dashboard
+# From Twilio dashboard (used for backend API calls)
+TWILIO_AUTH_TOKEN = '4e7e9aa6e11d6c72419076a82b9841ee'
+# From the API key you created
+TWILIO_API_KEY_SID = 'SKd661182db3b16b9edc3a7cee7626dabf'
+TWILIO_API_SECRET = 'K4xQkXZ9M1ANhdQOm0QH26mX4W2mNbre'     # From the API key
+# From the Conversations Service in dashboard
+TWILIO_CONVERSATIONS_SERVICE_SID = 'IS807444d3b5b745439b2530992d354748'
