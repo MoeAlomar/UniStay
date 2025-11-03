@@ -187,3 +187,18 @@
 html {
   font-size: var(--font-size);
 }
+
+/* Custom text color utilities for destructive (error) states */
+.text-destructive {
+  color: var(--destructive);
+}
+
+.text-destructive\/90 {
+  color: var(--destructive);
+}
+
+@supports (color: color-mix(in lab, red, red)) {
+  .text-destructive\/90 {
+    color: color-mix(in oklab, var(--destructive) 90%, transparent);
+  }
+}

@@ -18,6 +18,10 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         return token
 
     def validate(self, attrs):
+        # Normalize email to lowercase before authentication (email is the USERNAME_FIELD)
+        username_field = getattr(self, 'username_field', 'email')
+        if attrs.get(username_field):
+            attrs[username_field] = attrs[username_field].lower()
         # The default validate method handles user authentication
         data = super().validate(attrs)
 
@@ -53,14 +57,30 @@ class RegisterSerializer(serializers.ModelSerializer):
         read_only_fields = ("id", "is_email_verified",)
 
     def validate_email(self, value):
+        # Always normalize to lowercase
+        value_lower = (value or "").lower()
         role = self.initial_data.get("role")
-        if role == "student" and not re.match(r".+\.edu\.sa$", value):
+        if role == "student" and not re.match(r".+\.edu\.sa$", value_lower):
             raise serializers.ValidationError(
                 "Student emails must end with '.edu.sa'"
             )
+        # Case-insensitive duplicate check
+        if User.objects.filter(email__iexact=value_lower).exists():
+            raise serializers.ValidationError("user with this email address already exists")
+        return value_lower
+
+    def validate_phone(self, value):
+        # Allow null/blank; otherwise enforce 05XXXXXXXX format
+        if value in (None, ""):
+            return None
+        if not re.fullmatch(r"05\d{8}", str(value)):
+            raise serializers.ValidationError("Phone must start with 05 and be 10 digits")
         return value
 
     def create(self, validated_data):
+        # Ensure email is stored lowercase
+        if validated_data.get("email"):
+            validated_data["email"] = validated_data["email"].lower()
         password = validated_data.pop("password")
         user = User(**validated_data)
         user.set_password(password)

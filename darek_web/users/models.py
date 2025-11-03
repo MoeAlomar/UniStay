@@ -31,7 +31,18 @@ class User(AbstractUser):
 
     role = models.CharField(max_length=20, choices=Roles.choices, default=Roles.OTHER)
     gender = models.CharField(max_length=10, choices=Genders.choices)
-    phone = models.CharField(max_length=30, blank=True)
+    phone = models.CharField(
+        max_length=10,
+        unique=True,
+        blank=True,
+        null=True,
+        validators=[
+            RegexValidator(
+                regex=r'^05\d{8}$',
+                message='Phone must start with 05 and be 10 digits.'
+            )
+        ]
+    )
     is_email_verified = models.BooleanField(default=False)
 
     # If using email for login/authentication
@@ -40,3 +51,9 @@ class User(AbstractUser):
 
     def __str__(self):
         return f"{self.username} ({self.role})"
+
+    def save(self, *args, **kwargs):
+        # Normalize email to lowercase before saving to enforce case-insensitivity
+        if self.email:
+            self.email = self.email.lower()
+        super().save(*args, **kwargs)
