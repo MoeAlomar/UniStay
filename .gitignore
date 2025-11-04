@@ -1,12 +1,34 @@
-
 # IDE files
 .idea/
 *.iml
 *.xml
 # Virtual Environment
 venv/
-__pycache__
+/__pycache__/
 not Important/
 *.pyc
 node_modules/
 /darek_web/staticfiles/
+# Environment files
+.env
+
+# Database
+db.sqlite3
+
+# Python
+*.pyc
+__pycache__/
+venv/
+
+# Node.js
+node_modules/
+dist/
+build/
+
+# Logs
+*.log
+
+# IDE and system files
+.vscode/
+.DS_Store
+Thumbs.db
