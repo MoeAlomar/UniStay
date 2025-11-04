@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PropertyCard } from "./PropertyCard";
 import { Button } from "./ui/button";
 import { Slider } from "./ui/slider";
@@ -6,6 +6,8 @@ import { Checkbox } from "./ui/checkbox";
 import { Label } from "./ui/label";
 import { Card, CardContent } from "./ui/card";
 import { SlidersHorizontal, Grid3x3, List, MapIcon } from "lucide-react";
+import { profile, type User } from "../services/auth";
+import { list as listListings } from "../services/listings";
 
 interface SearchResultsProps {
   onNavigate: (page: string, propertyId?: string) => void;
@@ -85,31 +87,101 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
   const [priceRange, setPriceRange] = useState([0, 5000]);
   const [showMap, setShowMap] = useState(false);
   const [items, setItems] = useState<typeof mockProperties>(mockProperties);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  // Controlled filter states
+  const [typeStudio, setTypeStudio] = useState(false);
+  const [typeShared, setTypeShared] = useState(false); // maps to OTHER
+  const [typeApartment, setTypeApartment] = useState(false);
+  const [femaleOnly, setFemaleOnly] = useState(false);
+  const [studentDiscount, setStudentDiscount] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
       try {
-        const { list } = await import("../services/listings");
-        const data = await list();
+        // Load user to determine role-based default filtering
+        const u = await profile();
+        setCurrentUser(u);
+        setError(null);
+        setLoading(true);
+        const params: Record<string, any> = {};
+        if (u.role !== "landlord") params.status = "AVAILABLE";
+        const data = await listListings(params);
         setItems(
           data.map((l: any) => ({
             id: String(l.id),
             image:
               "https://images.unsplash.com/photo-1515263487990-61b07816b324?auto=format&fit=crop&w=1080&q=60",
-            price: l.price,
+            price: Number(l.price),
             title: l.title,
             location: l.district || "",
             distance: "",
             verified: true,
-            femaleOnly: l.female_only,
-            studentDiscount: l.student_discount,
+            femaleOnly: !!l.female_only,
+            studentDiscount: !!l.student_discount,
           }))
         );
       } catch (_) {
-        // keep mock
+        // keep mock on error (e.g., not authenticated)
+      } finally {
+        setLoading(false);
       }
     })();
   }, []);
+
+  const selectedTypeParam = useMemo(() => {
+    const count = [typeStudio, typeShared, typeApartment].filter(Boolean).length;
+    if (count !== 1) return undefined;
+    if (typeStudio) return "STUDIO";
+    if (typeApartment) return "APARTMENT";
+    if (typeShared) return "OTHER";
+    return undefined;
+  }, [typeStudio, typeShared, typeApartment]);
+
+  async function applyFilters() {
+    try {
+      setLoading(true);
+      setError(null);
+      const params: Record<string, any> = {
+        max_price: priceRange[1],
+      };
+      if (currentUser?.role !== "landlord") params.status = "AVAILABLE";
+      if (femaleOnly) params.female_only = true;
+      if (studentDiscount) params.student_discount = true;
+      if (selectedTypeParam) params.type = selectedTypeParam;
+      const data = await listListings(params);
+      setItems(
+        data.map((l: any) => ({
+          id: String(l.id),
+          image:
+            "https://images.unsplash.com/photo-1515263487990-61b07816b324?auto=format&fit=crop&w=1080&q=60",
+          price: Number(l.price),
+          title: l.title,
+          location: l.district || "",
+          distance: "",
+          verified: true,
+          femaleOnly: !!l.female_only,
+          studentDiscount: !!l.student_discount,
+        }))
+      );
+    } catch (e: any) {
+      setError("Failed to apply filters. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function resetFilters() {
+    setTypeStudio(false);
+    setTypeShared(false);
+    setTypeApartment(false);
+    setFemaleOnly(false);
+    setStudentDiscount(false);
+    setPriceRange([0, 5000]);
+    await applyFilters();
+  }
 
   return (
     <div className="min-h-screen bg-secondary">
@@ -139,24 +211,24 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
                   />
                 </div>
 
-                {/* Property Type */}
+                {/* Property Type (select one) */}
                 <div className="mb-6">
                   <Label className="mb-3 block">Property Type</Label>
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
-                      <Checkbox id="studio" />
+                      <Checkbox id="studio" checked={typeStudio} onCheckedChange={(v) => setTypeStudio(!!v)} />
                       <label htmlFor="studio" className="text-sm cursor-pointer">
                         Studio
                       </label>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Checkbox id="shared" />
+                      <Checkbox id="shared" checked={typeShared} onCheckedChange={(v) => setTypeShared(!!v)} />
                       <label htmlFor="shared" className="text-sm cursor-pointer">
                         Shared Room
                       </label>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Checkbox id="apartment" />
+                      <Checkbox id="apartment" checked={typeApartment} onCheckedChange={(v) => setTypeApartment(!!v)} />
                       <label htmlFor="apartment" className="text-sm cursor-pointer">
                         Apartment
                       </label>
@@ -175,13 +247,13 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
                       </label>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Checkbox id="female" />
+                      <Checkbox id="female" checked={femaleOnly} onCheckedChange={(v) => setFemaleOnly(!!v)} />
                       <label htmlFor="female" className="text-sm cursor-pointer">
                         Female Only
                       </label>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Checkbox id="discount" />
+                      <Checkbox id="discount" checked={studentDiscount} onCheckedChange={(v) => setStudentDiscount(!!v)} />
                       <label htmlFor="discount" className="text-sm cursor-pointer">
                         Student Discount
                       </label>
@@ -220,9 +292,14 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
                   </div>
                 </div>
 
-                <Button variant="outline" className="w-full">
-                  Reset Filters
-                </Button>
+                <div className="space-y-3">
+                  <Button onClick={applyFilters} className="w-full bg-green-600 hover:bg-green-700">
+                    Apply Filters
+                  </Button>
+                  <Button variant="outline" onClick={resetFilters} className="w-full">
+                    Reset Filters
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -264,6 +341,14 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
                 </Button>
               </div>
             </div>
+
+            {error && (
+              <div className="mb-4 text-red-600 text-sm">{error}</div>
+            )}
+
+            {loading && (
+              <div className="mb-4 text-muted-foreground text-sm">Loading...</div>
+            )}
 
             {/* Map Preview */}
             {showMap && (

@@ -1,11 +1,14 @@
+import { useState } from "react";
 import { Button } from "./ui/button";
-import { User, Menu } from "lucide-react";
+import { User as UserIcon, Menu } from "lucide-react";
+import type { User as AppUser } from "../services/auth";
 
 interface NavigationHeaderProps {
   onNavigate: (page: string) => void;
   currentPage: string;
   isLoggedIn?: boolean;
   userType?: "student" | "landlord";
+  user?: AppUser;
 }
 
 export function NavigationHeader({
@@ -13,6 +16,7 @@ export function NavigationHeader({
   currentPage,
   isLoggedIn = false,
   userType,
+  user,
 }: NavigationHeaderProps) {
   return (
     <header className="bg-white border-b border-border sticky top-0 z-50 shadow-sm">
@@ -33,14 +37,16 @@ export function NavigationHeader({
               onClick={() => onNavigate("search")}
               className="text-foreground hover:text-primary transition-colors"
             >
-              Find Housing
+              Listings
             </button>
-            <button
-              onClick={() => onNavigate("roommate")}
-              className="text-foreground hover:text-primary transition-colors"
-            >
-              Find Roommate
-            </button>
+            {isLoggedIn && user && user.role !== "landlord" && (
+              <button
+                onClick={() => onNavigate("roommate")}
+                className="text-foreground hover:text-primary transition-colors"
+              >
+                Roommates
+              </button>
+            )}
             {isLoggedIn && userType === "landlord" && (
               <button
                 onClick={() => onNavigate("dashboard")}
@@ -49,18 +55,10 @@ export function NavigationHeader({
                 Dashboard
               </button>
             )}
-            {isLoggedIn && (
-              <button
-                onClick={() => onNavigate("messages")}
-                className="text-foreground hover:text-primary transition-colors"
-              >
-                Messages
-              </button>
-            )}
           </nav>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 relative">
           {!isLoggedIn ? (
             <>
               <Button
@@ -73,8 +71,18 @@ export function NavigationHeader({
               <Button onClick={() => onNavigate("register")}>Register</Button>
             </>
           ) : (
-            <Button variant="outline" size="icon">
-              <User className="w-5 h-5" />
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => {
+                onNavigate("profile");
+                try {
+                  window.history.pushState(null, "", "/users/profile");
+                } catch (_) {}
+              }}
+              aria-label="Profile"
+            >
+              <UserIcon className="w-5 h-5" />
             </Button>
           )}
           <Button variant="ghost" size="icon" className="md:hidden">

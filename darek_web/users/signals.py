@@ -15,7 +15,7 @@ def send_verification_email(sender, instance, created, **kwargs):
     if created and not instance.is_email_verified:
         token = default_token_generator.make_token(instance)
         uid = urlsafe_base64_encode(force_bytes(instance.pk))
-        verification_link = f"{settings.FRONTEND_URL}/users/verify/{uid}/{token}/"  # Assuming React frontend; adjust URL
+        verification_link = f"{settings.VERIFICATION_BASE_URL}/users/verify/{uid}/{token}/"
 
         subject = "Verify Your UniStay KSA Account"
         message = render_to_string('users/verification_email.txt', {  # Create this template

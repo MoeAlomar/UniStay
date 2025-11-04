@@ -494,7 +494,7 @@ export function LoginRegister({
                       setRegisterErrors({});
                       setLoading(true);
                       try {
-                        const { register } = await import("../services/auth");
+                        const { register, login } = await import("../services/auth");
                         const emailLower = (registerEmail ?? "").toLowerCase();
                         // Client-side phone format pre-check: allow empty; else must match 05XXXXXXXX
                         if (registerPhone && !/^05\d{8}$/.test(registerPhone)) {
@@ -512,7 +512,14 @@ export function LoginRegister({
                           gender,
                           phone: registerPhone,
                         });
-                        onNavigate("landing");
+                        // Automatically log in with the same credentials
+                        try {
+                          await login(emailLower, registerPassword);
+                          onNavigate("landing");
+                        } catch (e: any) {
+                          // If auto-login fails, show the error but stay on register tab
+                          setError(parseError(e));
+                        }
                       } catch (e: any) {
                         const d = e?.response?.data;
                         if (d && typeof d === "object") {

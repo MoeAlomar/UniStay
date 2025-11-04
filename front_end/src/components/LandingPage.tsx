@@ -1,15 +1,14 @@
-import { Search, Home, Users, Building2 } from "lucide-react";
 import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Card, CardContent } from "./ui/card";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 
 interface LandingPageProps {
   onNavigate: (page: string) => void;
+  isLoggedIn?: boolean;
+  userType?: "student" | "landlord";
 }
 
-export function LandingPage({ onNavigate }: LandingPageProps) {
+export function LandingPage({ onNavigate, isLoggedIn, userType }: LandingPageProps) {
   return (
     <div className="min-h-screen bg-secondary">
       {/* Hero Section */}
@@ -25,125 +24,60 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
         <div className="container mx-auto max-w-4xl relative z-10">
           <div className="text-center mb-8">
             <h1 className="text-4xl md:text-5xl mb-4 text-foreground">
-              Find Your Perfect Student Home in KSA
+              UniStay KSA — Student Housing Made Simple
             </h1>
             <p className="text-lg text-muted-foreground">
-              Verified housing, trusted roommates, student-friendly prices
+              A trusted platform connecting students and verified landlords across Saudi Arabia.
             </p>
           </div>
-
-          {/* Search Card */}
+          {/* Overview Card */}
           <Card className="shadow-xl">
             <CardContent className="p-6">
-              <div className="grid md:grid-cols-4 gap-4 mb-4">
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="City" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="riyadh">Riyadh</SelectItem>
-                    <SelectItem value="jeddah">Jeddah</SelectItem>
-                    <SelectItem value="dammam">Dammam</SelectItem>
-                    <SelectItem value="mecca">Mecca</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Price Range" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="0-1000">0 - 1,000 SAR</SelectItem>
-                    <SelectItem value="1000-2000">1,000 - 2,000 SAR</SelectItem>
-                    <SelectItem value="2000-3000">2,000 - 3,000 SAR</SelectItem>
-                    <SelectItem value="3000+">3,000+ SAR</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Distance" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1km">Within 1 km</SelectItem>
-                    <SelectItem value="3km">Within 3 km</SelectItem>
-                    <SelectItem value="5km">Within 5 km</SelectItem>
-                    <SelectItem value="any">Any distance</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Gender" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="any">Any</SelectItem>
-                    <SelectItem value="female">Female Only</SelectItem>
-                    <SelectItem value="male">Male Only</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="mb-2 text-foreground">What is UniStay KSA?</h3>
+                  <p className="text-muted-foreground text-sm">
+                    UniStay KSA is a platform that helps students discover safe, verified accommodation near universities, and enables landlords to list properties tailored for student needs. Our goal is to make student housing transparent, affordable, and easy to access.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="mb-2 text-foreground">How it works</h3>
+                  <ul className="text-muted-foreground text-sm list-disc pl-5 space-y-1">
+                    <li>Students register with their `.edu.sa` email and verify it.</li>
+                    <li>Browse verified properties and connect with landlords.</li>
+                    <li>Landlords manage listings and messages via their dashboard.</li>
+                  </ul>
+                </div>
               </div>
-
-              <Button
-                className="w-full"
-                size="lg"
-                onClick={() => onNavigate("search")}
-              >
-                <Search className="w-5 h-5 mr-2" />
-                Search Housing
-              </Button>
             </CardContent>
           </Card>
         </div>
       </div>
 
-      {/* Quick Action Buttons */}
-      <div className="container mx-auto px-4 py-16 max-w-6xl">
-        <div className="grid md:grid-cols-3 gap-6">
-          <Card
-            className="hover:shadow-lg transition-shadow cursor-pointer"
-            onClick={() => onNavigate("search")}
-          >
-            <CardContent className="p-8 text-center">
-              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Home className="w-8 h-8 text-primary" />
-              </div>
-              <h3 className="mb-2 text-foreground">Find Housing</h3>
+      {/* About Section */}
+      <div className="bg-white py-16 px-4">
+        <div className="container mx-auto max-w-6xl">
+          <h2 className="text-center mb-12 text-foreground">About UniStay KSA</h2>
+          <div className="grid md:grid-cols-3 gap-8">
+            <div>
+              <h3 className="mb-2 text-foreground">Our Mission</h3>
               <p className="text-muted-foreground text-sm">
-                Browse verified student apartments and rooms near your campus
+                Provide safe, verified, and student-friendly housing options across Saudi Arabia.
               </p>
-            </CardContent>
-          </Card>
-
-          <Card
-            className="hover:shadow-lg transition-shadow cursor-pointer"
-            onClick={() => onNavigate("roommate")}
-          >
-            <CardContent className="p-8 text-center">
-              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Users className="w-8 h-8 text-primary" />
-              </div>
-              <h3 className="mb-2 text-foreground">Find Roommate</h3>
+            </div>
+            <div>
+              <h3 className="mb-2 text-foreground">For Students and other Users</h3>
               <p className="text-muted-foreground text-sm">
-                Connect with students looking to share accommodation
+                Discover verified accommodations nearby and connect directly with landlords.
               </p>
-            </CardContent>
-          </Card>
-
-          <Card
-            className="hover:shadow-lg transition-shadow cursor-pointer"
-            onClick={() => onNavigate("dashboard")}
-          >
-            <CardContent className="p-8 text-center">
-              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Building2 className="w-8 h-8 text-primary" />
-              </div>
+            </div>
+            <div>
               <h3 className="mb-2 text-foreground">For Landlords</h3>
               <p className="text-muted-foreground text-sm">
-                List your property and connect with student tenants
+                List properties, manage listings, via your dashboard.
               </p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -181,6 +115,46 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
                 Special rates and offers exclusively for students
               </p>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* FAQ Section */}
+      <div className="bg-white py-16 px-4">
+        <div className="container mx-auto max-w-4xl">
+          <h2 className="text-center mb-8 text-foreground">Frequently Asked Questions</h2>
+          <div className="space-y-4">
+            <Card>
+              <CardContent className="p-4">
+                <h3 className="text-foreground mb-2">Who can use UniStay KSA?</h3>
+                <p className="text-muted-foreground text-sm">Students, employees and landlords across Saudi Arabia. Students should register with a `.edu.sa` email.</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <h3 className="text-foreground mb-2">Why do students need an `.edu.sa` email?</h3>
+                <p className="text-muted-foreground text-sm">Student accounts require `.edu.sa` to be verified as a student. Landlords and other users can register with any valid email.</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <h3 className="text-foreground mb-2">How do I list a property?</h3>
+                <p className="text-muted-foreground text-sm">Register as a landlord, then access your listings from the top navigation to create and manage listings, use the dashboard to see your listings status.</p>
+              </CardContent>
+            </Card>
+          </div>
+          <div className="text-center mt-8">
+            <Button
+              onClick={() => {
+                if (isLoggedIn) {
+                  onNavigate(userType === "landlord" ? "dashboard" : "profile");
+                } else {
+                  onNavigate("register");
+                }
+              }}
+            >
+              Get Started
+            </Button>
           </div>
         </div>
       </div>

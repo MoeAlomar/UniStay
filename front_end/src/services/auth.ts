@@ -12,8 +12,8 @@ export type User = {
   is_email_verified: boolean;
 };
 
-export async function login(username: string, password: string) {
-  const { data } = await api.post("/users/login/", { username, password });
+export async function login(email: string, password: string) {
+  const { data } = await api.post("/users/login/", { email, password });
   setTokens(data.access, data.refresh);
   return data as { access: string; refresh: string; user: User; redirect_url: string };
 }

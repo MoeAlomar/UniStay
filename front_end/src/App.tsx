@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavigationHeader } from "./components/NavigationHeader";
 import { LandingPage } from "./components/LandingPage";
 import { SearchResults } from "./components/SearchResults";
@@ -8,6 +8,9 @@ import { RoommateMatching } from "./components/RoommateMatching";
 import { OwnerDashboard } from "./components/OwnerDashboard";
 import { LoginRegister } from "./components/LoginRegister";
 import { Verification } from "./components/Verification";
+import { ProfilePage } from "./components/ProfilePage";
+import { storage } from "./services/api";
+import { profile, type User } from "./services/auth";
 
 type Page =
   | "landing"
@@ -18,13 +21,15 @@ type Page =
   | "dashboard"
   | "login"
   | "register"
-  | "verification";
+  | "verification"
+  | "profile";
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>("landing");
   const [selectedPropertyId, setSelectedPropertyId] = useState<string>("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userType, setUserType] = useState<"student" | "landlord">("student");
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   const handleNavigate = (page: string, propertyId?: string) => {
     setCurrentPage(page as Page);
@@ -45,6 +50,28 @@ export default function App() {
     window.scrollTo(0, 0);
   };
 
+  // Sync auth state with stored tokens and fetch user profile for role
+  useEffect(() => {
+    const syncAuth = async () => {
+      if (storage.access) {
+        setIsLoggedIn(true);
+        try {
+          const u = await profile();
+          setCurrentUser(u);
+          if (u.role === "landlord") setUserType("landlord");
+          else setUserType("student");
+        } catch (e) {
+          // If profile fails, keep the login state; tokens may be invalid
+          // Optionally handle token clearing, but keep minimal for now
+        }
+      } else {
+        setIsLoggedIn(false);
+        setCurrentUser(null);
+      }
+    };
+    syncAuth();
+  }, [currentPage]);
+
   const showHeader =
     currentPage !== "login" &&
     currentPage !== "register" &&
@@ -58,10 +85,17 @@ export default function App() {
           currentPage={currentPage}
           isLoggedIn={isLoggedIn}
           userType={userType}
+          user={currentUser || undefined}
         />
       )}
 
-      {currentPage === "landing" && <LandingPage onNavigate={handleNavigate} />}
+      {currentPage === "landing" && (
+        <LandingPage
+          onNavigate={handleNavigate}
+          isLoggedIn={isLoggedIn}
+          userType={userType}
+        />
+      )}
       {currentPage === "search" && <SearchResults onNavigate={handleNavigate} />}
       {currentPage === "listing" && (
         <ListingDetails
@@ -84,6 +118,9 @@ export default function App() {
       )}
       {currentPage === "verification" && (
         <Verification onNavigate={handleNavigate} />
+      )}
+      {currentPage === "profile" && (
+        <ProfilePage user={currentUser || undefined} onNavigate={handleNavigate} />
       )}
     </div>
   );

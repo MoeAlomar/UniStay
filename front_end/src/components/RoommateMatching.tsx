@@ -1,205 +1,427 @@
-import { useState } from "react";
-import { RoommateCard } from "./RoommateCard";
-import { Card, CardContent } from "./ui/card";
+import { useEffect, useMemo, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { Slider } from "./ui/slider";
+import { Input } from "./ui/input";
+import { Textarea } from "./ui/textarea";
+import { Switch } from "./ui/switch";
+import { Button } from "./ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { Badge } from "./ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
 import { SlidersHorizontal } from "lucide-react";
+import type { User } from "../services/auth";
+import { profile } from "../services/auth";
+import type { RoommatePost, RoommateGroup } from "../services/roommates";
+import { posts as fetchPosts, createPost, groups as fetchGroups, createRequest } from "../services/roommates";
 
 interface RoommateMatchingProps {
   onNavigate: (page: string) => void;
 }
 
-const mockRoommates = [
-  {
-    id: "1",
-    name: "Fatima Al-Saud",
-    age: 21,
-    university: "King Saud University",
-    major: "Computer Science",
-    budget: "1,500-2,000",
-    preferredArea: "Al Malqa, Riyadh",
-    gender: "female" as const,
-  },
-  {
-    id: "2",
-    name: "Noor Abdullah",
-    age: 20,
-    university: "Princess Nourah University",
-    major: "Business Administration",
-    budget: "1,200-1,800",
-    preferredArea: "Olaya, Riyadh",
-    gender: "female" as const,
-  },
-  {
-    id: "3",
-    name: "Layla Mohammed",
-    age: 22,
-    university: "King Saud University",
-    major: "Medicine",
-    budget: "2,000-2,500",
-    preferredArea: "Al Yasmin, Riyadh",
-    gender: "female" as const,
-  },
-  {
-    id: "4",
-    name: "Omar Hassan",
-    age: 23,
-    university: "King Saud University",
-    major: "Engineering",
-    budget: "1,800-2,200",
-    preferredArea: "Al Nakheel, Riyadh",
-    gender: "male" as const,
-  },
-  {
-    id: "5",
-    name: "Khalid Ahmed",
-    age: 21,
-    university: "Imam University",
-    major: "Information Technology",
-    budget: "1,500-2,000",
-    preferredArea: "King Saud University Area",
-    gender: "male" as const,
-  },
-  {
-    id: "6",
-    name: "Sarah Ali",
-    age: 19,
-    university: "Princess Nourah University",
-    major: "Architecture",
-    budget: "1,000-1,500",
-    preferredArea: "Diplomatic Quarter",
-    gender: "female" as const,
-  },
+const universities = [
+  "King Saud University",
+  "Princess Nourah University",
+  "Imam University",
+  "Al Yamamah University",
+];
+
+const districts = [
+  "Olaya",
+  "Al Malqa",
+  "Al Yasmin",
+  "Al Nakheel",
+  "Diplomatic Quarter",
 ];
 
 export function RoommateMatching({ onNavigate }: RoommateMatchingProps) {
-  const [budgetRange, setBudgetRange] = useState([1000, 3000]);
-  const [selectedGender, setSelectedGender] = useState<string>("any");
-  const [selectedUniversity, setSelectedUniversity] = useState<string>("any");
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [tabValue, setTabValue] = useState<string>("find");
 
-  const filteredRoommates = mockRoommates.filter((roommate) => {
-    if (selectedGender !== "any" && roommate.gender !== selectedGender) {
-      return false;
+  // Lists
+  const [postList, setPostList] = useState<RoommatePost[]>([]);
+  const [groupsList, setGroupsList] = useState<RoommateGroup[]>([]);
+  const [loadingPosts, setLoadingPosts] = useState<boolean>(true);
+  const [loadingGroups, setLoadingGroups] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Filters
+  const [filterUniversity, setFilterUniversity] = useState<string>("any");
+  const [filterFemaleOnly, setFilterFemaleOnly] = useState<string>("any");
+  const [filterDistrict, setFilterDistrict] = useState<string>("any");
+  const [filterType, setFilterType] = useState<string>("any");
+
+  // Create Post form
+  const [maxBudget, setMaxBudget] = useState<number>(1500);
+  const [preferredType, setPreferredType] = useState<"APARTMENT" | "STUDIO" | "OTHER" | null>(null);
+  const [notes, setNotes] = useState<string>("");
+  const [femaleOnly, setFemaleOnly] = useState<boolean>(false);
+  const [university, setUniversity] = useState<string>("");
+  const [district, setDistrict] = useState<string>("");
+  const [creating, setCreating] = useState<boolean>(false);
+
+  // Details & Request
+  const [selectedPost, setSelectedPost] = useState<RoommatePost | null>(null);
+  const [requestNotes, setRequestNotes] = useState<string>("");
+  const [sendingRequest, setSendingRequest] = useState<boolean>(false);
+  const [requestError, setRequestError] = useState<string | null>(null);
+  const [requestSuccess, setRequestSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Load user and initial data
+    (async () => {
+      try {
+        const user = await profile();
+        setCurrentUser(user);
+      } catch (e) {
+        // not critical for listing, tokens likely missing
+      }
+      try {
+        setLoadingPosts(true);
+        const list = await fetchPosts();
+        setPostList(list);
+      } catch (e: any) {
+        setError("Failed to load roommate posts.");
+      } finally {
+        setLoadingPosts(false);
+      }
+      try {
+        setLoadingGroups(true);
+        const glist = await fetchGroups();
+        setGroupsList(glist);
+      } catch (e: any) {
+        // groups may be empty; ignore softly
+      } finally {
+        setLoadingGroups(false);
+      }
+    })();
+  }, []);
+
+  const myGroups = useMemo(() => {
+    if (!currentUser) return groupsList;
+    return groupsList.filter((g) => (g.members || []).some((m) => (m as any).id === currentUser.id));
+  }, [groupsList, currentUser]);
+
+  const filteredPosts = useMemo(() => {
+    return postList.filter((p) => {
+      if (filterUniversity !== "any" && (p.university || "").toLowerCase() !== filterUniversity.toLowerCase()) return false;
+      if (filterDistrict !== "any" && (p.district || "").toLowerCase() !== filterDistrict.toLowerCase()) return false;
+      if (filterFemaleOnly !== "any" && (p.female_only ? "female" : "any") !== filterFemaleOnly) return false;
+      if (filterType !== "any" && p.preferred_type !== filterType) return false;
+      return true;
+    });
+  }, [postList, filterUniversity, filterDistrict, filterFemaleOnly, filterType]);
+
+  async function handleSendRequest() {
+    if (!selectedPost || !selectedPost.author?.id) return;
+    try {
+      setSendingRequest(true);
+      setRequestError(null);
+      setRequestSuccess(null);
+      await createRequest({ receiver: selectedPost.author.id, post: selectedPost.id, notes: requestNotes || undefined });
+      setRequestSuccess("Request sent successfully.");
+    } catch (e: any) {
+      setRequestError("Failed to send request. Please try again.");
+    } finally {
+      setSendingRequest(false);
     }
-    if (
-      selectedUniversity !== "any" &&
-      !roommate.university.includes(selectedUniversity)
-    ) {
-      return false;
+  }
+
+  async function handleCreatePost(e: React.FormEvent) {
+    e.preventDefault();
+    setCreating(true);
+    setError(null);
+    try {
+      const payload = {
+        max_budget: maxBudget,
+        preferred_type: preferredType,
+        notes: notes || null,
+        female_only: femaleOnly,
+        university: university || null,
+        district: district || null,
+      } as Omit<RoommatePost, "id" | "author" | "created_at" | "updated_at">;
+      const created = await createPost(payload);
+      setPostList((prev) => [created, ...prev]);
+      // reset minimal fields
+      setNotes("");
+    } catch (e: any) {
+      setError("Failed to create roommate post.");
+    } finally {
+      setCreating(false);
     }
-    return true;
-  });
+  }
 
   return (
     <div className="min-h-screen bg-secondary">
       <div className="container mx-auto px-4 py-8">
         <div className="mb-6">
-          <h1 className="mb-2 text-foreground">Find Your Perfect Roommate</h1>
+          <h1 className="mb-2 text-foreground">Roommates</h1>
           <p className="text-muted-foreground">
-            Connect with students looking to share accommodation
+            Find roommate posts and manage your group
           </p>
         </div>
 
-        <div className="flex gap-6">
-          {/* Filter Sidebar */}
-          <div className="hidden lg:block w-80 flex-shrink-0">
-            <Card className="sticky top-24">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-2 mb-6">
-                  <SlidersHorizontal className="w-5 h-5 text-primary" />
-                  <h3 className="text-foreground">Filters</h3>
+        <Tabs value={tabValue} onValueChange={setTabValue}>
+          <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsTrigger value="find">Find</TabsTrigger>
+            <TabsTrigger value="group">My Group</TabsTrigger>
+          </TabsList>
+
+          {/* Find Tab */}
+          <TabsContent value="find">
+            <div className="grid lg:grid-cols-[320px_1fr] gap-6">
+              {/* Filter + Create Sidebar */}
+              <div className="flex-shrink-0">
+                {/* Filters */}
+                <Card className="mb-6 sticky top-24">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-2 mb-6">
+                      <SlidersHorizontal className="w-5 h-5 text-primary" />
+                      <h3 className="text-foreground">Filters</h3>
+                    </div>
+
+                    <div className="mb-5">
+                      <Label className="mb-2 block">University</Label>
+                      <Select value={filterUniversity} onValueChange={setFilterUniversity}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Any" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="any">Any</SelectItem>
+                          {universities.map((u) => (
+                            <SelectItem key={u} value={u}>{u}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="mb-5">
+                      <Label className="mb-2 block">Preferred District</Label>
+                      <Select value={filterDistrict} onValueChange={setFilterDistrict}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Any" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="any">Any</SelectItem>
+                          {districts.map((d) => (
+                            <SelectItem key={d} value={d}>{d}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="mb-5">
+                      <Label className="mb-2 block">Female Only</Label>
+                      <Select value={filterFemaleOnly} onValueChange={setFilterFemaleOnly}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Any" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="any">Any</SelectItem>
+                          <SelectItem value="female">Female Only</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label className="mb-2 block">Preferred Type</Label>
+                      <Select value={filterType} onValueChange={setFilterType}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Any" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="any">Any</SelectItem>
+                          <SelectItem value="APARTMENT">Apartment</SelectItem>
+                          <SelectItem value="STUDIO">Studio</SelectItem>
+                          <SelectItem value="OTHER">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Create Post */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Create Roommate Post</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-6">
+                    <form className="space-y-4" onSubmit={handleCreatePost}>
+                      <div>
+                        <Label htmlFor="maxBudget">Max Budget (SAR/mo)</Label>
+                        <Input id="maxBudget" type="number" value={maxBudget as any} onChange={(e) => setMaxBudget(Number(e.target.value))} />
+                      </div>
+                      <div>
+                        <Label>Preferred Type</Label>
+                        <Select value={preferredType ?? ""} onValueChange={(v: string) => setPreferredType((v || null) as "APARTMENT" | "STUDIO" | "OTHER" | null)}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="APARTMENT">Apartment</SelectItem>
+                            <SelectItem value="STUDIO">Studio</SelectItem>
+                            <SelectItem value="OTHER">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div>
+                          <Label>University</Label>
+                          <Select value={university} onValueChange={setUniversity}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {universities.map((u) => (
+                                <SelectItem key={u} value={u}>{u}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>District</Label>
+                          <Select value={district} onValueChange={setDistrict}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {districts.map((d) => (
+                                <SelectItem key={d} value={d}>{d}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Switch id="femaleOnly" checked={femaleOnly} onCheckedChange={setFemaleOnly} />
+                        <Label htmlFor="femaleOnly">Female Only</Label>
+                      </div>
+                      <div>
+                        <Label htmlFor="notes">Notes</Label>
+                        <Textarea id="notes" placeholder="Anything important about your preferences" value={notes} onChange={(e) => setNotes(e.target.value)} />
+                      </div>
+                      {error && <div className="text-red-600 text-sm">{error}</div>}
+                      <Button type="submit" disabled={creating}>
+                        {creating ? "Creating..." : "Create Post"}
+                      </Button>
+                    </form>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Posts List */}
+              <div className="flex-1">
+                <div className="mb-4">
+                  <p className="text-muted-foreground text-sm">
+                    {loadingPosts ? "Loading posts..." : `${filteredPosts.length} roommate posts found`}
+                  </p>
                 </div>
 
-                {/* Budget Range */}
-                <div className="mb-6">
-                  <Label className="mb-3 block">
-                    Budget Range: {budgetRange[0]} - {budgetRange[1]} SAR
-                  </Label>
-                  <Slider
-                    min={0}
-                    max={5000}
-                    step={100}
-                    value={budgetRange}
-                    onValueChange={setBudgetRange}
-                    className="mb-2"
-                  />
+                <div className="grid md:grid-cols-2 gap-6">
+                  {filteredPosts.map((p) => (
+                    <Card key={p.id} className="overflow-hidden cursor-pointer" onClick={() => { setSelectedPost(p); setRequestNotes(""); setRequestError(null); setRequestSuccess(null); }}>
+                      <CardContent className="p-6">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <h3 className="text-foreground">
+                              {(p.author?.first_name || p.author?.username) ?? "Roommate"}
+                            </h3>
+                            <p className="text-sm text-muted-foreground">{p.university || "—"}</p>
+                          </div>
+                          {p.female_only && (<Badge className="bg-purple-600 hover:bg-purple-700">Female Only</Badge>)}
+                        </div>
+                        <div className="text-sm text-muted-foreground mb-2">District: {p.district || "—"}</div>
+                        <div className="mb-3">
+                          <span className="text-sm text-muted-foreground">Max Budget: </span>
+                          <span className="text-primary">{Number(p.max_budget).toLocaleString()} SAR/mo</span>
+                        </div>
+                        <div className="text-sm text-muted-foreground mb-3">Preferred Type: {p.preferred_type || "Any"}</div>
+                        {p.notes && (
+                          <div className="text-sm text-muted-foreground mb-4">{p.notes}</div>
+                        )}
+                        <div className="flex gap-3">
+                          <Button variant="secondary" onClick={(e: React.MouseEvent<HTMLButtonElement>) => { e.stopPropagation(); onNavigate("messages"); }}>Message</Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
-
-                {/* Gender Preference */}
-                <div className="mb-6">
-                  <Label className="mb-3 block">Gender Preference</Label>
-                  <Select value={selectedGender} onValueChange={setSelectedGender}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="any">Any</SelectItem>
-                      <SelectItem value="female">Female</SelectItem>
-                      <SelectItem value="male">Male</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* University */}
-                <div className="mb-6">
-                  <Label className="mb-3 block">University</Label>
-                  <Select
-                    value={selectedUniversity}
-                    onValueChange={setSelectedUniversity}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="any">Any University</SelectItem>
-                      <SelectItem value="King Saud">King Saud University</SelectItem>
-                      <SelectItem value="Princess Nourah">
-                        Princess Nourah University
-                      </SelectItem>
-                      <SelectItem value="Imam">Imam University</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Preferred Area */}
-                <div className="mb-6">
-                  <Label className="mb-3 block">Preferred Area</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select area" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="al-malqa">Al Malqa</SelectItem>
-                      <SelectItem value="olaya">Olaya</SelectItem>
-                      <SelectItem value="al-yasmin">Al Yasmin</SelectItem>
-                      <SelectItem value="al-nakheel">Al Nakheel</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Roommate Cards */}
-          <div className="flex-1">
-            <div className="mb-6">
-              <p className="text-muted-foreground text-sm">
-                {filteredRoommates.length} potential roommates found
-              </p>
+              </div>
             </div>
+          </TabsContent>
 
-            <div className="grid md:grid-cols-2 gap-6">
-              {filteredRoommates.map((roommate) => (
-                <RoommateCard
-                  key={roommate.id}
-                  {...roommate}
-                  onMessage={() => onNavigate("messages")}
-                />
-              ))}
+          {/* My Group Tab */}
+          <TabsContent value="group">
+            <div>
+              <div className="mb-4">
+                <p className="text-muted-foreground text-sm">
+                  {loadingGroups ? "Loading groups..." : `${myGroups.length} groups`}
+                </p>
+              </div>
+              <div className="grid md:grid-cols-2 gap-6">
+                {myGroups.map((g) => (
+                  <Card key={g.id}>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-foreground">{g.name}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                      <div className="text-sm text-muted-foreground mb-2">University: {g.university || "—"}</div>
+                      <div className="text-sm text-muted-foreground mb-2">Address: {g.address || "—"}</div>
+                      <div className="text-sm text-muted-foreground mb-2">Members: {g.members?.length ?? 0}/{g.max_members}</div>
+                      <div className="text-sm text-muted-foreground mb-2">Status: {g.status}</div>
+                      {g.female_only && (<Badge className="bg-purple-600 hover:bg-purple-700">Female Only</Badge>)}
+                      <div className="mt-4">
+                        <Button onClick={() => onNavigate("messages")} className="w-full">Open Conversation</Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             </div>
-          </div>
-        </div>
+          </TabsContent>
+        </Tabs>
+
+        {/* Details Dialog */}
+        <Dialog open={!!selectedPost} onOpenChange={(open: boolean) => { if (!open) { setSelectedPost(null); setRequestNotes(""); setRequestError(null); setRequestSuccess(null); } }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Roommate Details</DialogTitle>
+            </DialogHeader>
+            {selectedPost && (
+              <div className="space-y-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="text-foreground">{(selectedPost.author?.first_name || selectedPost.author?.username) ?? "Roommate"}</h3>
+                    <p className="text-sm text-muted-foreground">{selectedPost.university || "—"}</p>
+                  </div>
+                  {selectedPost.female_only && (<Badge className="bg-purple-600 hover:bg-purple-700">Female Only</Badge>)}
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-sm text-muted-foreground">
+                  <div>District: {selectedPost.district || "—"}</div>
+                  <div>Max Budget: <span className="text-primary">{Number(selectedPost.max_budget).toLocaleString()} SAR/mo</span></div>
+                  <div className="col-span-2">Preferred Type: {selectedPost.preferred_type || "Any"}</div>
+                </div>
+                {selectedPost.notes && (
+                  <div className="text-sm text-muted-foreground">{selectedPost.notes}</div>
+                )}
+                <div>
+                  <Label className="mb-2 block">Notes (optional)</Label>
+                  <Textarea value={requestNotes} onChange={(e) => setRequestNotes(e.target.value)} placeholder="Introduce yourself or add context for your request" rows={4} />
+                </div>
+                {requestError && <div className="text-red-600 text-sm">{requestError}</div>}
+                {requestSuccess && <div className="text-green-600 text-sm">{requestSuccess}</div>}
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setSelectedPost(null); setRequestNotes(""); setRequestError(null); setRequestSuccess(null); }}>
+                Close
+              </Button>
+              <Button className="bg-green-600 hover:bg-green-700" disabled={sendingRequest || !selectedPost} onClick={handleSendRequest}>
+                {sendingRequest ? "Sending..." : "Send Request"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
