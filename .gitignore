@@ -9,3 +9,4 @@ __pycache__
 not Important/
 *.pyc
 node_modules/
+/darek_web/staticfiles/

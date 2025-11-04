@@ -10,8 +10,13 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+from dotenv import load_dotenv  # Load .env locally
+load_dotenv()  # This loads .env into os.environ
+
+import os
 from corsheaders.defaults import default_headers
 from pathlib import Path
+import dj_database_url  # For parsing DATABASE_URL in prod
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,12 +25,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-v5-fej7w)h9#n*hs9zzwag_us+p)daewkr-19+=fp4%cm3hewg'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-v5-fej7w)h9#n*hs9zzwag_us+p)daewkr-19+=fp4%cm3hewg')  # Fallback for local only
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'  # Set to False in prod env
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')  # Comma-separated in env; use '*' initially for Render
 
 # Application definition
 INSTALLED_APPS = [
@@ -35,8 +40,10 @@ INSTALLED_APPS = [
     "rest_framework",
     "django_filters",
     "corsheaders",
+    "drf_yasg",
     # project apps
     'users', 'listings', 'messaging', 'reviews', 'roommates',
+    # Add 'whitenoise.runserver_nostatic' if using Whitenoise for static files in dev too (optional)
 ]
 
 AUTH_USER_MODEL = 'users.User'  # tell Django to use your custom model
@@ -50,8 +57,25 @@ REST_FRAMEWORK = {
     ],
 }
 
+# Make Swagger show a JWT bearer input at the top-right
+SWAGGER_SETTINGS = {
+    "USE_SESSION_AUTH": False,
+    "SECURITY_DEFINITIONS": {
+        "Bearer": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header",
+            "description": 'JWT Authorization header using the Bearer scheme. Example: "Bearer <token>"',
+        }
+    },
+    # Optional UX tweaks
+    "DOC_EXPANSION": "none",
+    "DEFAULT_MODEL_RENDERING": "example",
+}
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Add this after SecurityMiddleware for static files
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -67,13 +91,12 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'grimmdororo@gmail.com'  # Replace with your actual Gmail
-# Not your regular password—see below
-EMAIL_HOST_PASSWORD = 'jhhy qogl vbxh ggxu'
-DEFAULT_FROM_EMAIL = 'grimmdororo@gmail.com'  # Same as EMAIL_HOST_USER
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')  # From .env or prod env
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')  # App password from Google
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL')
 
 # Frontend URL used in emails/links
-FRONTEND_URL = 'http://127.0.0.1:5173'
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://127.0.0.1:5173')
 
 # CORS configuration to allow the Vite dev server
 CORS_ALLOWED_ORIGINS = [
@@ -83,13 +106,11 @@ CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:3000',
 ]
 CORS_ALLOW_CREDENTIALS = True
-
 # Ensure common headers are allowed for preflight
 CORS_ALLOW_HEADERS = list(default_headers) + [
     'authorization',
     'content-type',
 ]
-
 
 TEMPLATES = [
     {
@@ -111,19 +132,15 @@ WSGI_APPLICATION = 'darek_web.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
-
+# In prod (Render), this will use DATABASE_URL env var
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'darekDB',
-        'USER': 'postgres',
-        'PASSWORD': 'darekDB',
-        'HOST': '127.0.0.1',
-        'PORT': '5432',
-    }
+    'default': dj_database_url.config(
+        default=os.environ.get('DATABASE_URL', 'postgres://postgres:darekDB@127.0.0.1:5432/darekDB'),  # Fallback to local PostgreSQL URL
+        conn_max_age=600,
+        engine='django.db.backends.postgresql',
+    )
 }
-
+# If you want to force SQLite locally, uncomment and adjust logic with if DEBUG: ...
 # DATABASES = {
 #     'default': {
 #         'ENGINE': 'django.db.backends.sqlite3',
@@ -157,20 +174,25 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'  # Where collectstatic will dump files
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'  # Efficient compression
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Wathq API Key
-WATHQ_API_KEY = "1nCMGHcNMePWKjUlJH7GJqG04n9IVBIo"
+WATHQ_API_KEY = os.environ.get('WATHQ_API_KEY')
+
 # Twilio API Key
-TWILIO_ACCOUNT_SID = 'AC0a96fceaf733033c7c4e6d859055f8a3'  # From Twilio dashboard
-# From Twilio dashboard (used for backend API calls)
-TWILIO_AUTH_TOKEN = '4e7e9aa6e11d6c72419076a82b9841ee'
-# From the API key you created
-TWILIO_API_KEY_SID = 'SKd661182db3b16b9edc3a7cee7626dabf'
-TWILIO_API_SECRET = 'K4xQkXZ9M1ANhdQOm0QH26mX4W2mNbre'     # From the API key
-# From the Conversations Service in dashboard
-TWILIO_CONVERSATIONS_SERVICE_SID = 'IS807444d3b5b745439b2530992d354748'
+TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID')  # From Twilio dashboard
+TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN')     # From Twilio dashboard (used for backend API calls)
+TWILIO_API_KEY_SID = os.environ.get('TWILIO_API_KEY_SID')  # From the API key you created
+TWILIO_API_SECRET = os.environ.get('TWILIO_API_SECRET')     # From the API key
+TWILIO_CONVERSATIONS_SERVICE_SID = os.environ.get('TWILIO_CONVERSATIONS_SERVICE_SID')  # From the Conversations Service in dashboard
+
+# Security extras for prod
+SECURE_SSL_REDIRECT = not DEBUG  # Redirect HTTP to HTTPS (Render handles SSL)
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
