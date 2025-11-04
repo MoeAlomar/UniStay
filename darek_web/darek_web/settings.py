@@ -25,7 +25,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-v5-fej7w)h9#n*hs9zzwag_us+p)daewkr-19+=fp4%cm3hewg')  # Fallback for local only
+# Prefer loading from environment (.env in dev). In non-debug, require it.
+SECRET_KEY = os.environ.get('SECRET_KEY')
+if not SECRET_KEY:
+    # Use a deterministic dev-only fallback when DEBUG is true via env
+    if os.environ.get('DEBUG', 'True') == 'True':
+        SECRET_KEY = 'django-insecure-dev-only'
+    else:
+        raise RuntimeError('SECRET_KEY is not set. Provide it via environment.')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'  # Set to False in prod env
@@ -132,21 +139,42 @@ WSGI_APPLICATION = 'darek_web.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-# In prod (Render), this will use DATABASE_URL env var
-DATABASES = {
-    'default': dj_database_url.config(
-        default=os.environ.get('DATABASE_URL', 'postgres://postgres:darekDB@127.0.0.1:5432/darekDB'),  # Fallback to local PostgreSQL URL
-        conn_max_age=600,
-        engine='django.db.backends.postgresql',
-    )
-}
-# If you want to force SQLite locally, uncomment and adjust logic with if DEBUG: ...
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
+# Database configuration
+# Priority: 1) DATABASE_URL, 2) discrete DB_* env vars, 3) SQLite in DEBUG
+_db_url = os.environ.get('DATABASE_URL')
+if _db_url:
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=_db_url,
+            conn_max_age=600,
+        )
+    }
+else:
+    _db_name = os.environ.get('DB_NAME')
+    _db_user = os.environ.get('DB_USER')
+    _db_password = os.environ.get('DB_PASSWORD')
+    _db_host = os.environ.get('DB_HOST', '127.0.0.1')
+    _db_port = os.environ.get('DB_PORT', '5432')
+    if _db_name and _db_user:
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.postgresql',
+                'NAME': _db_name,
+                'USER': _db_user,
+                'PASSWORD': _db_password,
+                'HOST': _db_host,
+                'PORT': _db_port,
+            }
+        }
+    elif os.environ.get('DEBUG', 'True') == 'True':
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.sqlite3',
+                'NAME': BASE_DIR / 'db.sqlite3',
+            }
+        }
+    else:
+        raise RuntimeError('Database configuration missing. Set DATABASE_URL or DB_* env vars.')
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
