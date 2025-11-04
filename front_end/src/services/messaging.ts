@@ -5,9 +5,9 @@ export async function twilioToken() {
   return data as { token: string };
 }
 
-export async function createConversation(participants: number[]) {
-  const { data } = await api.post("/messaging/conversations/create/", { participants });
-  return data as { sid: string };
+export async function createConversation(other_user_id: number) {
+  const { data } = await api.post("/messaging/conversations/create/", { other_user_id });
+  return data as { conversation_sid: string };
 }
 
 export async function sendMessage(conversation_sid: string, body: string) {

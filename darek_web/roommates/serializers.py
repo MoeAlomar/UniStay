@@ -30,14 +30,15 @@ class RoommatePostSerializer(serializers.ModelSerializer):
 class RoommateRequestSerializer(serializers.ModelSerializer):
     sender = UserSerializer(read_only=True)
     receiver = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    receiver_details = UserSerializer(source='receiver', read_only=True)
     post = RoommatePostSerializer(read_only=True)
 
     class Meta:
         model = RoommateRequest
         fields = [
-            'id', 'sender', 'receiver', 'post', 'notes', 'status', 'created_at'
+            'id', 'sender', 'receiver', 'receiver_details', 'post', 'notes', 'status', 'created_at'
         ]
-        read_only_fields = ['id', 'sender', 'status', 'created_at']
+        read_only_fields = ['id', 'sender', 'receiver_details', 'status', 'created_at']
 
     def validate(self, data):
         request = self.context['request']
@@ -51,6 +52,16 @@ class RoommateRequestSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data['sender'] = self.context['request'].user
+        # Accept 'post' id from payload and attach the RoommatePost instance
+        try:
+            post_id = self.initial_data.get('post')
+        except Exception:
+            post_id = None
+        if post_id:
+            try:
+                validated_data['post'] = RoommatePost.objects.get(id=post_id)
+            except RoommatePost.DoesNotExist:
+                pass
         return super().create(validated_data)
 
 class RoommateGroupSerializer(serializers.ModelSerializer):

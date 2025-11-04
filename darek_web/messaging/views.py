@@ -17,6 +17,18 @@ class TwilioAccessTokenView(APIView):
         user = request.user
         identity = str(user.id)  # Secure linking: Use user ID as identity
 
+        # Validate Twilio configuration before issuing tokens
+        if not all([
+            settings.TWILIO_ACCOUNT_SID,
+            settings.TWILIO_API_KEY_SID,
+            settings.TWILIO_API_SECRET,
+            settings.TWILIO_CONVERSATIONS_SERVICE_SID,
+        ]):
+            return Response(
+                {"error": "Twilio is not configured. Set TWILIO_* env vars."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
         # Create access token with ChatGrant for Conversations
         token = AccessToken(
             settings.TWILIO_ACCOUNT_SID,
@@ -30,7 +42,11 @@ class TwilioAccessTokenView(APIView):
         chat_grant = ChatGrant(service_sid=settings.TWILIO_CONVERSATIONS_SERVICE_SID)
         token.add_grant(chat_grant)
 
-        return Response({'token': token.to_jwt()}, status=status.HTTP_200_OK)
+        # Ensure token is a string for JSON
+        jwt = token.to_jwt()
+        if isinstance(jwt, bytes):
+            jwt = jwt.decode("utf-8")
+        return Response({'token': jwt}, status=status.HTTP_200_OK)
 
 class CreateConversationView(APIView):
     permission_classes = [IsAuthenticated]

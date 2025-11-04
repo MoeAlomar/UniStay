@@ -13,7 +13,9 @@ import { SlidersHorizontal } from "lucide-react";
 import type { User } from "../services/auth";
 import { profile } from "../services/auth";
 import type { RoommatePost, RoommateGroup } from "../services/roommates";
-import { posts as fetchPosts, createPost, groups as fetchGroups, createRequest } from "../services/roommates";
+import { posts as fetchPosts, createPost, deletePost, groups as fetchGroups, createRequest, requests as fetchRequests, acceptRequest, rejectRequest, deleteRequest, leaveGroup, kickMember, type RoommateRequest } from "../services/roommates";
+import { districtChoices } from "../services/listings";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "./ui/collapsible";
 
 interface RoommateMatchingProps {
   onNavigate: (page: string) => void;
@@ -26,13 +28,9 @@ const universities = [
   "Al Yamamah University",
 ];
 
-const districts = [
-  "Olaya",
-  "Al Malqa",
-  "Al Yasmin",
-  "Al Nakheel",
-  "Diplomatic Quarter",
-];
+// District options loaded from backend listings choices (sorted)
+// Fallback to empty until loaded
+const initialDistricts: string[] = [];
 
 export function RoommateMatching({ onNavigate }: RoommateMatchingProps) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -44,12 +42,23 @@ export function RoommateMatching({ onNavigate }: RoommateMatchingProps) {
   const [loadingPosts, setLoadingPosts] = useState<boolean>(true);
   const [loadingGroups, setLoadingGroups] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [requestsList, setRequestsList] = useState<RoommateRequest[]>([]);
+  const [loadingRequests, setLoadingRequests] = useState<boolean>(false);
+  const [requestsError, setRequestsError] = useState<string | null>(null);
 
   // Filters
+  const [filtersOpen, setFiltersOpen] = useState<boolean>(true);
+  // Applied filters
   const [filterUniversity, setFilterUniversity] = useState<string>("any");
   const [filterFemaleOnly, setFilterFemaleOnly] = useState<string>("any");
   const [filterDistrict, setFilterDistrict] = useState<string>("any");
   const [filterType, setFilterType] = useState<string>("any");
+  // Pending (UI) filters
+  const [pendingUniversity, setPendingUniversity] = useState<string>("any");
+  const [pendingFemaleOnly, setPendingFemaleOnly] = useState<string>("any");
+  const [pendingDistrict, setPendingDistrict] = useState<string>("any");
+  const [pendingType, setPendingType] = useState<string>("any");
+  const [districtOptions, setDistrictOptions] = useState<string[]>(initialDistricts);
 
   // Create Post form
   const [maxBudget, setMaxBudget] = useState<number>(1500);
@@ -66,6 +75,8 @@ export function RoommateMatching({ onNavigate }: RoommateMatchingProps) {
   const [sendingRequest, setSendingRequest] = useState<boolean>(false);
   const [requestError, setRequestError] = useState<string | null>(null);
   const [requestSuccess, setRequestSuccess] = useState<string | null>(null);
+  // Group details
+  const [selectedGroup, setSelectedGroup] = useState<RoommateGroup | null>(null);
 
   useEffect(() => {
     // Load user and initial data
@@ -94,8 +105,31 @@ export function RoommateMatching({ onNavigate }: RoommateMatchingProps) {
       } finally {
         setLoadingGroups(false);
       }
+      try {
+        const districts = await districtChoices();
+        setDistrictOptions(districts);
+      } catch (e) {
+        // ignore; keep empty fallback
+      }
     })();
   }, []);
+
+  useEffect(() => {
+    if (tabValue === "requests") {
+      (async () => {
+        try {
+          setLoadingRequests(true);
+          setRequestsError(null);
+          const list = await fetchRequests();
+          setRequestsList(list);
+        } catch (e) {
+          setRequestsError("Failed to load requests.");
+        } finally {
+          setLoadingRequests(false);
+        }
+      })();
+    }
+  }, [tabValue]);
 
   const myGroups = useMemo(() => {
     if (!currentUser) return groupsList;
@@ -112,8 +146,36 @@ export function RoommateMatching({ onNavigate }: RoommateMatchingProps) {
     });
   }, [postList, filterUniversity, filterDistrict, filterFemaleOnly, filterType]);
 
+  async function handleApplyFilters() {
+    // Apply pending UI selections to active filters
+    setFilterUniversity(pendingUniversity);
+    setFilterDistrict(pendingDistrict);
+    setFilterFemaleOnly(pendingFemaleOnly);
+    setFilterType(pendingType);
+    // Fetch server-side filtered list for better performance
+    const params: Record<string, any> = {};
+    if (pendingUniversity !== "any") params.university = pendingUniversity;
+    if (pendingDistrict !== "any") params.district = pendingDistrict;
+    if (pendingFemaleOnly === "female") params.female_only = true;
+    if (pendingType !== "any") params.preferred_type = pendingType;
+    try {
+      setLoadingPosts(true);
+      const list = await fetchPosts(params);
+      setPostList(list);
+    } catch (e) {
+      // keep client-side filtering if request fails
+    } finally {
+      setLoadingPosts(false);
+    }
+  }
+
   async function handleSendRequest() {
     if (!selectedPost || !selectedPost.author?.id) return;
+    // Disallow sending requests if user is already in a group
+    if (myGroups.length > 0) {
+      setRequestError("You are already in a group. Leave your group to send requests.");
+      return;
+    }
     try {
       setSendingRequest(true);
       setRequestError(null);
@@ -121,7 +183,8 @@ export function RoommateMatching({ onNavigate }: RoommateMatchingProps) {
       await createRequest({ receiver: selectedPost.author.id, post: selectedPost.id, notes: requestNotes || undefined });
       setRequestSuccess("Request sent successfully.");
     } catch (e: any) {
-      setRequestError("Failed to send request. Please try again.");
+      const backendMsg = e?.response?.data?.error || e?.response?.data?.detail;
+      setRequestError(backendMsg || "Failed to send request. Please try again.");
     } finally {
       setSendingRequest(false);
     }
@@ -151,6 +214,78 @@ export function RoommateMatching({ onNavigate }: RoommateMatchingProps) {
     }
   }
 
+  async function handleDeletePost(postId: string) {
+    try {
+      await deletePost(postId);
+      setPostList((prev) => prev.filter((x) => x.id !== postId));
+      if (selectedPost?.id === postId) {
+        setSelectedPost(null);
+      }
+    } catch (e) {
+      // Best-effort: silently fail for now
+    }
+  }
+
+  function formatName(u?: User | null) {
+    // Ensure identical display for sender and receiver: use username consistently
+    return (u && u.username) ? u.username : "User";
+  }
+
+  function splitRequests() {
+    const me = currentUser?.id;
+    const received = requestsList.filter((r) => (r.receiver as any) === me && r.status === "PENDING");
+    const sent = requestsList.filter((r) => r.sender?.id === me);
+    return { received, sent };
+  }
+
+  async function handleAccept(id: string) {
+    try {
+      await acceptRequest(id);
+      const list = await fetchRequests();
+      setRequestsList(list);
+      // Refresh groups so accepted requests reflect immediately
+      const glist = await fetchGroups();
+      setGroupsList(glist);
+    } catch {}
+  }
+
+  async function handleReject(id: string) {
+    try {
+      await rejectRequest(id);
+      const list = await fetchRequests();
+      setRequestsList(list);
+    } catch {}
+  }
+
+  async function handleDelete(id: string) {
+    try {
+      await deleteRequest(id);
+      const list = await fetchRequests();
+      setRequestsList(list);
+    } catch {}
+  }
+
+  async function handleLeaveSelectedGroup() {
+    if (!selectedGroup) return;
+    try {
+      await leaveGroup(selectedGroup.id);
+      const glist = await fetchGroups();
+      setGroupsList(glist);
+      setSelectedGroup(null);
+    } catch {}
+  }
+
+  async function handleKickMember(groupId: string, memberId: number) {
+    try {
+      await kickMember(groupId, memberId);
+      const glist = await fetchGroups();
+      setGroupsList(glist);
+      // Keep dialog open but refresh selected group from new list
+      const updated = glist.find((g) => g.id === groupId) || null;
+      setSelectedGroup(updated);
+    } catch {}
+  }
+
   return (
     <div className="min-h-screen bg-secondary">
       <div className="container mx-auto px-4 py-8">
@@ -162,9 +297,27 @@ export function RoommateMatching({ onNavigate }: RoommateMatchingProps) {
         </div>
 
         <Tabs value={tabValue} onValueChange={setTabValue}>
-          <TabsList className="grid w-full grid-cols-2 mb-6">
-            <TabsTrigger value="find">Find</TabsTrigger>
-            <TabsTrigger value="group">My Group</TabsTrigger>
+          <TabsList
+            className="mb-6 -mx-2 flex items-end gap-2 border-b border-muted"
+          >
+            <TabsTrigger
+              value="find"
+              className="rounded-t-md px-4 py-2 text-sm font-medium border border-muted bg-muted/40 hover:bg-muted/60 transition-colors data-[state=active]:bg-background data-[state=active]:shadow-md data-[state=active]:text-foreground data-[state=active]:border-b-transparent"
+            >
+              Find
+            </TabsTrigger>
+            <TabsTrigger
+              value="requests"
+              className="rounded-t-md px-4 py-2 text-sm font-medium border border-muted bg-muted/40 hover:bg-muted/60 transition-colors data-[state=active]:bg-background data-[state=active]:shadow-md data-[state=active]:text-foreground data-[state=active]:border-b-transparent"
+            >
+              Requests
+            </TabsTrigger>
+            <TabsTrigger
+              value="group"
+              className="rounded-t-md px-4 py-2 text-sm font-medium border border-muted bg-muted/40 hover:bg-muted/60 transition-colors data-[state=active]:bg-background data-[state=active]:shadow-md data-[state=active]:text-foreground data-[state=active]:border-b-transparent"
+            >
+              My Group
+            </TabsTrigger>
           </TabsList>
 
           {/* Find Tab */}
@@ -173,70 +326,85 @@ export function RoommateMatching({ onNavigate }: RoommateMatchingProps) {
               {/* Filter + Create Sidebar */}
               <div className="flex-shrink-0">
                 {/* Filters */}
-                <Card className="mb-6 sticky top-24">
+                <Card className="mb-6 lg:sticky lg:top-24">
                   <CardContent className="p-6">
-                    <div className="flex items-center gap-2 mb-6">
-                      <SlidersHorizontal className="w-5 h-5 text-primary" />
-                      <h3 className="text-foreground">Filters</h3>
-                    </div>
+                    <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
+                      <CollapsibleTrigger asChild>
+                        <div className="flex items-center justify-between mb-4 cursor-pointer">
+                          <div className="flex items-center gap-2">
+                            <SlidersHorizontal className="w-5 h-5 text-primary" />
+                            <h3 className="text-foreground">Filters</h3>
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {filtersOpen ? "Click to collapse" : "Click to expand"}
+                          </span>
+                        </div>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] data-[state=open]:opacity-100 data-[state=closed]:opacity-0">
+                        <div className="mb-5">
+                          <Label className="mb-2 block">University</Label>
+                          <Select value={pendingUniversity} onValueChange={setPendingUniversity}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Any" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="any">Any</SelectItem>
+                              {universities.map((u) => (
+                                <SelectItem key={u} value={u}>{u}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
 
-                    <div className="mb-5">
-                      <Label className="mb-2 block">University</Label>
-                      <Select value={filterUniversity} onValueChange={setFilterUniversity}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Any" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="any">Any</SelectItem>
-                          {universities.map((u) => (
-                            <SelectItem key={u} value={u}>{u}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                        <div className="mb-5">
+                          <Label className="mb-2 block">Preferred District</Label>
+                          <Select value={pendingDistrict} onValueChange={setPendingDistrict}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Any" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="any">Any</SelectItem>
+                              {districtOptions.map((d) => (
+                                <SelectItem key={d} value={d}>{d}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
 
-                    <div className="mb-5">
-                      <Label className="mb-2 block">Preferred District</Label>
-                      <Select value={filterDistrict} onValueChange={setFilterDistrict}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Any" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="any">Any</SelectItem>
-                          {districts.map((d) => (
-                            <SelectItem key={d} value={d}>{d}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                        <div className="mb-5">
+                          <Label className="mb-2 block">Female Only</Label>
+                          <Select value={pendingFemaleOnly} onValueChange={setPendingFemaleOnly}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Any" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="any">Any</SelectItem>
+                              <SelectItem value="female">Female Only</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
 
-                    <div className="mb-5">
-                      <Label className="mb-2 block">Female Only</Label>
-                      <Select value={filterFemaleOnly} onValueChange={setFilterFemaleOnly}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Any" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="any">Any</SelectItem>
-                          <SelectItem value="female">Female Only</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                        <div className="mb-5">
+                          <Label className="mb-2 block">Preferred Type</Label>
+                          <Select value={pendingType} onValueChange={setPendingType}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Any" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="any">Any</SelectItem>
+                              <SelectItem value="APARTMENT">Apartment</SelectItem>
+                              <SelectItem value="STUDIO">Studio</SelectItem>
+                              <SelectItem value="OTHER">Other</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
 
-                    <div>
-                      <Label className="mb-2 block">Preferred Type</Label>
-                      <Select value={filterType} onValueChange={setFilterType}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Any" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="any">Any</SelectItem>
-                          <SelectItem value="APARTMENT">Apartment</SelectItem>
-                          <SelectItem value="STUDIO">Studio</SelectItem>
-                          <SelectItem value="OTHER">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                        <div className="flex gap-3">
+                          <Button onClick={handleApplyFilters} className="flex-1">Apply Filters</Button>
+                          <Button variant="outline" className="flex-1" onClick={() => { setPendingUniversity("any"); setPendingDistrict("any"); setPendingFemaleOnly("any"); setPendingType("any"); }}>Reset</Button>
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
                   </CardContent>
                 </Card>
 
@@ -285,7 +453,7 @@ export function RoommateMatching({ onNavigate }: RoommateMatchingProps) {
                               <SelectValue placeholder="Select" />
                             </SelectTrigger>
                             <SelectContent>
-                              {districts.map((d) => (
+                              {districtOptions.map((d) => (
                                 <SelectItem key={d} value={d}>{d}</SelectItem>
                               ))}
                             </SelectContent>
@@ -341,6 +509,9 @@ export function RoommateMatching({ onNavigate }: RoommateMatchingProps) {
                         )}
                         <div className="flex gap-3">
                           <Button variant="secondary" onClick={(e: React.MouseEvent<HTMLButtonElement>) => { e.stopPropagation(); onNavigate("messages"); }}>Message</Button>
+                          {currentUser?.id === p.author?.id && (
+                            <Button variant="outline" onClick={(e: React.MouseEvent<HTMLButtonElement>) => { e.stopPropagation(); handleDeletePost(p.id); }}>Delete</Button>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
@@ -360,15 +531,13 @@ export function RoommateMatching({ onNavigate }: RoommateMatchingProps) {
               </div>
               <div className="grid md:grid-cols-2 gap-6">
                 {myGroups.map((g) => (
-                  <Card key={g.id}>
+                  <Card key={g.id} className="cursor-pointer" onClick={() => setSelectedGroup(g)}>
                     <CardHeader className="pb-3">
                       <CardTitle className="text-foreground">{g.name}</CardTitle>
                     </CardHeader>
                     <CardContent className="p-6">
                       <div className="text-sm text-muted-foreground mb-2">University: {g.university || "—"}</div>
-                      <div className="text-sm text-muted-foreground mb-2">Address: {g.address || "—"}</div>
-                      <div className="text-sm text-muted-foreground mb-2">Members: {g.members?.length ?? 0}/{g.max_members}</div>
-                      <div className="text-sm text-muted-foreground mb-2">Status: {g.status}</div>
+                      <div className="text-sm text-muted-foreground mb-2">Members: {(g.members || []).map((m) => formatName(m)).join(", ") || "—"}</div>
                       {g.female_only && (<Badge className="bg-purple-600 hover:bg-purple-700">Female Only</Badge>)}
                       <div className="mt-4">
                         <Button onClick={() => onNavigate("messages")} className="w-full">Open Conversation</Button>
@@ -377,6 +546,84 @@ export function RoommateMatching({ onNavigate }: RoommateMatchingProps) {
                   </Card>
                 ))}
               </div>
+            </div>
+          </TabsContent>
+
+          {/* Requests Tab */}
+          <TabsContent value="requests">
+            <div>
+              <div className="mb-4">
+                <p className="text-muted-foreground text-sm">
+                  {loadingRequests ? "Loading requests..." : `${requestsList.length} requests`}
+                </p>
+                {requestsError && <p className="text-red-600 text-sm">{requestsError}</p>}
+              </div>
+              {(() => {
+                const { received, sent } = splitRequests();
+                return (
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-foreground">Received</CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-6 space-y-4">
+                        {received.length === 0 && (
+                          <p className="text-sm text-muted-foreground">No requests received.</p>
+                        )}
+                        {received.map((r) => (
+                          <div key={r.id} className="border rounded-md p-4">
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <div className="text-sm text-muted-foreground">From: {formatName(r.sender)}</div>
+                                {r.post && <div className="text-sm text-muted-foreground">Post: {r.post.university || "—"} • {r.post.district || "—"}</div>}
+                                {r.notes && <div className="text-sm text-muted-foreground mt-2">{r.notes}</div>}
+                              </div>
+                              <Badge variant={r.status === "PENDING" ? "secondary" : "default"}>{r.status}</Badge>
+                            </div>
+                            {r.status === "PENDING" && (
+                              <div className="flex gap-3 mt-3">
+                                <Button onClick={() => handleAccept(r.id)} className="bg-green-600 hover:bg-green-700">Accept</Button>
+                                <Button variant="outline" onClick={() => handleReject(r.id)}>Reject</Button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-foreground">Sent</CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-6 space-y-4">
+                        {sent.length === 0 && (
+                          <p className="text-sm text-muted-foreground">No requests sent.</p>
+                        )}
+                        {sent.map((r) => (
+                          <div key={r.id} className="border rounded-md p-4">
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <div className="text-sm text-muted-foreground">To: {formatName(r.receiver_details as User)}</div>
+                                {r.post && <div className="text-sm text-muted-foreground">Post: {r.post.university || "—"} • {r.post.district || "—"}</div>}
+                                {r.notes && <div className="text-sm text-muted-foreground mt-2">{r.notes}</div>}
+                              </div>
+                              <Badge variant={r.status === "PENDING" ? "secondary" : "default"}>{r.status}</Badge>
+                            </div>
+                            <div className="flex gap-3 mt-3">
+                              {r.status === "PENDING" && (
+                                <Button variant="outline" onClick={() => handleDelete(r.id)}>Delete</Button>
+                              )}
+                              {r.status === "REJECTED" && (
+                                <Button variant="outline" onClick={() => handleDelete(r.id)}>Dismiss</Button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  </div>
+                );
+              })()}
             </div>
           </TabsContent>
         </Tabs>
@@ -420,6 +667,44 @@ export function RoommateMatching({ onNavigate }: RoommateMatchingProps) {
                 {sendingRequest ? "Sending..." : "Send Request"}
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Group Details Dialog */}
+        <Dialog open={!!selectedGroup} onOpenChange={(open: boolean) => { if (!open) setSelectedGroup(null); }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Group Details</DialogTitle>
+            </DialogHeader>
+            {selectedGroup && (
+              <div className="space-y-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="text-foreground">{selectedGroup.name}</h3>
+                    <p className="text-sm text-muted-foreground">{selectedGroup.university || "—"}</p>
+                  </div>
+                  {selectedGroup.female_only && (<Badge className="bg-purple-600 hover:bg-purple-700">Female Only</Badge>)}
+                </div>
+                <div>
+                  <Label className="mb-2 block">Members</Label>
+                  <div className="space-y-2">
+                    {(selectedGroup.members || []).map((m) => (
+                      <div key={(m as any).id} className="flex items-center justify-between text-sm">
+                        <span>{formatName(m)}</span>
+                        {currentUser?.id === (selectedGroup.leader as any)?.id && currentUser?.id !== (m as any).id && (
+                          <Button variant="outline" size="sm" onClick={() => handleKickMember(selectedGroup.id, (m as any).id)}>Kick</Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <Button variant="outline" onClick={() => setSelectedGroup(null)}>Close</Button>
+                  <Button className="bg-red-600 hover:bg-red-700" onClick={handleLeaveSelectedGroup}>Leave Group</Button>
+                  <Button onClick={() => onNavigate("messages")} className="ml-auto">Open Conversation</Button>
+                </div>
+              </div>
+            )}
           </DialogContent>
         </Dialog>
       </div>

@@ -50,3 +50,9 @@ export async function dashboard() {
   return data as { total_listings: number; reserved: number; available: number; draft: number; listings: Listing[] };
 }
 
+// Fetch sorted district display names for filters and forms
+export async function districtChoices() {
+  const { data } = await api.get("/listings/districts/");
+  return data as string[];
+}
+

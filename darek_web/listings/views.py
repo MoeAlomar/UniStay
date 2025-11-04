@@ -8,6 +8,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q
 from .models import Listing
 from .serializers import ListingSerializer
+from .districts_listings import districts as DISTRICT_CHOICES
 
 class ListingViewSet(ModelViewSet):
     queryset = Listing.objects.all()
@@ -114,3 +115,9 @@ class ListingViewSet(ModelViewSet):
                 fields = ['status', 'female_only', 'roommates_allowed', 'type', 'student_discount', 'max_price', 'district']
 
         return ListingFilter
+
+    @action(detail=False, methods=['get'], url_path='districts')
+    def districts(self, request):
+        # Return the sorted display labels for districts
+        labels = [label for value, label in DISTRICT_CHOICES]
+        return Response(labels)
