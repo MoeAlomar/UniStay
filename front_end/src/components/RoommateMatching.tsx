@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useLayoutEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -9,7 +9,8 @@ import { Button } from "./ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Badge } from "./ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
-import { SlidersHorizontal } from "lucide-react";
+import { SlidersHorizontal, ChevronDown } from "lucide-react";
+import { motion } from "framer-motion";
 import type { User } from "../services/auth";
 import { profile } from "../services/auth";
 import type { RoommatePost, RoommateGroup } from "../services/roommates";
@@ -31,6 +32,24 @@ const universities = [
 // District options loaded from backend listings choices (sorted)
 // Fallback to empty until loaded
 const initialDistricts: string[] = [];
+
+// Measure a container's scrollHeight and update on resize
+function useMeasuredHeight<T extends HTMLElement>() {
+  const ref = useRef<T | null>(null);
+  const [h, setH] = useState(0);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => setH(el.scrollHeight);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  return { ref, height: h } as const;
+}
 
 export function RoommateMatching({ onNavigate }: RoommateMatchingProps) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -59,6 +78,36 @@ export function RoommateMatching({ onNavigate }: RoommateMatchingProps) {
   const [pendingDistrict, setPendingDistrict] = useState<string>("any");
   const [pendingType, setPendingType] = useState<string>("any");
   const [districtOptions, setDistrictOptions] = useState<string[]>(initialDistricts);
+
+  // Measured height for smooth expand/collapse without height:auto race
+  const { ref: filtersInnerRef, height: filtersInnerHeight } = useMeasuredHeight<HTMLDivElement>();
+
+  // --- Constant-speed + frozen target height ---
+  const [frozenH, setFrozenH] = useState<number | null>(null);
+  const prevHRef = useRef(0);
+
+  const rawTarget = filtersOpen ? filtersInnerHeight : 0;
+  const targetH = frozenH ?? rawTarget;
+
+  // lock target when toggling, so RO updates won't re-target mid-flight
+  useEffect(() => {
+    setFrozenH(filtersOpen ? filtersInnerHeight : 0);
+  }, [filtersOpen]);
+
+  // compute duration from distance => near-constant speed
+  const PX_PER_SEC = 600;   // tuned speed: 600 px/sec
+  const MIN_DUR = 0.20;
+  const MAX_DUR = 0.50;
+  const distance = Math.abs(prevHRef.current - targetH);
+  const duration = Math.min(MAX_DUR, Math.max(MIN_DUR, distance / PX_PER_SEC));
+
+  // perfectly linear easing for constant speed
+  const EASE: number[] = [0, 0, 1, 1];
+
+  // after each retarget, remember the last target
+  useLayoutEffect(() => {
+    prevHRef.current = targetH;
+  }, [targetH]);
 
   // Create Post form
   const [maxBudget, setMaxBudget] = useState<number>(1500);
@@ -330,79 +379,106 @@ export function RoommateMatching({ onNavigate }: RoommateMatchingProps) {
                   <CardContent className="p-6">
                     <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
                       <CollapsibleTrigger asChild>
-                        <div className="flex items-center justify-between mb-4 cursor-pointer">
+                        <div className="flex items-center justify-between mb-4 cursor-pointer group">
                           <div className="flex items-center gap-2">
                             <SlidersHorizontal className="w-5 h-5 text-primary" />
                             <h3 className="text-foreground">Filters</h3>
                           </div>
-                          <span className="text-xs text-muted-foreground">
-                            {filtersOpen ? "Click to collapse" : "Click to expand"}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">
+                              {filtersOpen ? "Click to collapse" : "Click to expand"}
+                            </span>
+                            <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform duration-300 group-data-[state=open]:rotate-180" />
+                          </div>
                         </div>
                       </CollapsibleTrigger>
-                      <CollapsibleContent className="overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] data-[state=open]:opacity-100 data-[state=closed]:opacity-0">
-                        <div className="mb-5">
-                          <Label className="mb-2 block">University</Label>
-                          <Select value={pendingUniversity} onValueChange={setPendingUniversity}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Any" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="any">Any</SelectItem>
-                              {universities.map((u) => (
-                                <SelectItem key={u} value={u}>{u}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
+                      <CollapsibleContent
+                        asChild
+                        forceMount
+                        // kill shadcn keyframes so only Framer animates
+                        className="overflow-hidden data-[state=open]:animate-none data-[state=closed]:animate-none"
+                      >
+                        <motion.div
+                          // keep a single animator in control
+                          initial={false}
+                          animate={{ height: targetH }}
+                          transition={{
+                            height: { duration, ease: EASE },
+                          }}
+                          // once open, let layout breathe without flicker
+                          transitionEnd={filtersOpen ? { height: "auto" } : {}}
+                          style={{ overflow: "hidden", willChange: "height" }}
+                          onAnimationComplete={() => {
+                            // unlock measurement again for future opens
+                            setFrozenH(null);
+                          }}
+                        >
+                          {/* This is the element we measure */}
+                          <div ref={filtersInnerRef}>
+                            <div className="mb-5">
+                              <Label className="mb-2 block">University</Label>
+                              <Select value={pendingUniversity} onValueChange={setPendingUniversity}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Any" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="any">Any</SelectItem>
+                                  {universities.map((u) => (
+                                    <SelectItem key={u} value={u}>{u}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
 
-                        <div className="mb-5">
-                          <Label className="mb-2 block">Preferred District</Label>
-                          <Select value={pendingDistrict} onValueChange={setPendingDistrict}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Any" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="any">Any</SelectItem>
-                              {districtOptions.map((d) => (
-                                <SelectItem key={d} value={d}>{d}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
+                            <div className="mb-5">
+                              <Label className="mb-2 block">Preferred District</Label>
+                              <Select value={pendingDistrict} onValueChange={setPendingDistrict}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Any" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="any">Any</SelectItem>
+                                  {districtOptions.map((d) => (
+                                    <SelectItem key={d} value={d}>{d}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
 
-                        <div className="mb-5">
-                          <Label className="mb-2 block">Female Only</Label>
-                          <Select value={pendingFemaleOnly} onValueChange={setPendingFemaleOnly}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Any" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="any">Any</SelectItem>
-                              <SelectItem value="female">Female Only</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
+                            <div className="mb-5">
+                              <Label className="mb-2 block">Female Only</Label>
+                              <Select value={pendingFemaleOnly} onValueChange={setPendingFemaleOnly}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Any" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="any">Any</SelectItem>
+                                  <SelectItem value="female">Female Only</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
 
-                        <div className="mb-5">
-                          <Label className="mb-2 block">Preferred Type</Label>
-                          <Select value={pendingType} onValueChange={setPendingType}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Any" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="any">Any</SelectItem>
-                              <SelectItem value="APARTMENT">Apartment</SelectItem>
-                              <SelectItem value="STUDIO">Studio</SelectItem>
-                              <SelectItem value="OTHER">Other</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
+                            <div className="mb-5">
+                              <Label className="mb-2 block">Preferred Type</Label>
+                              <Select value={pendingType} onValueChange={setPendingType}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Any" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="any">Any</SelectItem>
+                                  <SelectItem value="APARTMENT">Apartment</SelectItem>
+                                  <SelectItem value="STUDIO">Studio</SelectItem>
+                                  <SelectItem value="OTHER">Other</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
 
-                        <div className="flex gap-3">
-                          <Button onClick={handleApplyFilters} className="flex-1">Apply Filters</Button>
-                          <Button variant="outline" className="flex-1" onClick={() => { setPendingUniversity("any"); setPendingDistrict("any"); setPendingFemaleOnly("any"); setPendingType("any"); }}>Reset</Button>
-                        </div>
+                            <div className="flex gap-3">
+                              <Button onClick={handleApplyFilters} className="flex-1">Apply Filters</Button>
+                              <Button variant="outline" className="flex-1" onClick={() => { setPendingUniversity("any"); setPendingDistrict("any"); setPendingFemaleOnly("any"); setPendingType("any"); }}>Reset</Button>
+                            </div>
+                          </div>
+                        </motion.div>
                       </CollapsibleContent>
                     </Collapsible>
                   </CardContent>

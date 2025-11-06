@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { Separator } from "./ui/separator";
-import { CheckCircle2, AlertCircle, ArrowLeft } from "lucide-react";
+import { CheckCircle2, AlertCircle, ArrowLeft, Moon, Sun } from "lucide-react";
 import type { User as AppUser } from "../services/auth";
 import { profile as fetchProfile } from "../services/auth";
 import { clearTokens } from "../services/api";
@@ -17,6 +17,7 @@ export function ProfilePage({ user: userProp, onNavigate }: Props) {
   const [user, setUser] = useState<AppUser | null | undefined>(userProp);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
     // Ensure URL reflects the profile page
@@ -38,6 +39,29 @@ export function ProfilePage({ user: userProp, onNavigate }: Props) {
       setUser(userProp);
     }
   }, [userProp]);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("theme");
+      const initialDark = saved ? saved === "dark" : document.documentElement.classList.contains("dark");
+      document.documentElement.classList.toggle("dark", initialDark);
+      setIsDark(initialDark);
+    } catch (_) {
+      const initialDark = document.documentElement.classList.contains("dark");
+      setIsDark(initialDark);
+    }
+  }, []);
+
+  function toggleDarkMode() {
+    setIsDark((prev) => {
+      const next = !prev;
+      document.documentElement.classList.toggle("dark", next);
+      try {
+        localStorage.setItem("theme", next ? "dark" : "light");
+      } catch (_) {}
+      return next;
+    });
+  }
 
   const initials = useMemo(() => {
     const fn = user?.first_name?.trim() || "";
@@ -97,11 +121,27 @@ export function ProfilePage({ user: userProp, onNavigate }: Props) {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-4">
-            <Avatar className="h-16 w-16">
-              {/* Replace AvatarImage src with real photo when available */}
-              <AvatarImage src={undefined} alt="Profile photo" />
-              <AvatarFallback>{initials}</AvatarFallback>
-            </Avatar>
+            <div className="relative">
+              <Avatar className="h-16 w-16">
+                {/* Replace AvatarImage src with real photo when available */}
+                <AvatarImage src={undefined} alt="Profile photo" />
+                <AvatarFallback>{initials}</AvatarFallback>
+              </Avatar>
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+                onClick={toggleDarkMode}
+                className="absolute -top-2 -left-2 h-8 w-8 rounded-md bg-card/80 backdrop-blur border border-border shadow-sm hover:bg-muted transition-colors"
+              >
+                {isDark ? (
+                  <Sun className="h-4 w-4 text-white" />
+                ) : (
+                  <Moon className="h-4 w-4 text-black" />
+                )}
+              </Button>
+            </div>
             <div className="flex-1">
               <CardTitle className="text-2xl">
                 {(user?.first_name || user?.last_name) ? `${user?.first_name ?? ""} ${user?.last_name ?? ""}`.trim() : user?.username}
