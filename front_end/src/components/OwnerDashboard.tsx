@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { Switch } from "./ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import {
   Home,
   MessageSquare,
@@ -16,9 +19,11 @@ import {
   Trash2,
 } from "lucide-react";
 import { PropertyCard } from "./PropertyCard";
+import { districtOptions as fetchDistrictOptions } from "../services/listings";
+import { getAmenitiesForListing, setAmenitiesForListing, removeAmenitiesForListing } from "../services/amenitiesLocal";
 
 interface OwnerDashboardProps {
-  onNavigate: (page: string) => void;
+  onNavigate: (page: string, propertyId?: string) => void;
 }
 
 const mockListings = [
@@ -49,13 +54,44 @@ const mockListings = [
 export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
   const [showNewListing, setShowNewListing] = useState(false);
   const [femaleOnly, setFemaleOnly] = useState(false);
+  const [roommatesAllowed, setRoommatesAllowed] = useState(false);
   const [studentDiscount, setStudentDiscount] = useState(false);
   const [stats, setStats] = useState<{ total_listings: number; available: number; reserved: number; draft: number } | null>(null);
   const [listings, setListings] = useState<any[]>([]);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingListing, setEditingListing] = useState<any | null>(null);
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState<number | "">("");
-  const [district, setDistrict] = useState("");
+  const [districtValue, setDistrictValue] = useState<string>("");
+  const [districtOptions, setDistrictOptions] = useState<{ value: string; label: string }[]>([]);
+  const [locationLink, setLocationLink] = useState<string>("");
+  const [idType, setIdType] = useState<string>("");
+  const [idNumber, setIdNumber] = useState<string>("");
+  const [deedNumber, setDeedNumber] = useState<string>("");
   const [description, setDescription] = useState("");
+  const [bedrooms, setBedrooms] = useState<number | "">("");
+  const [bathrooms, setBathrooms] = useState<number | "">("");
+  const [area, setArea] = useState<number | "">("");
+  const [formError, setFormError] = useState<string | null>(null);
+  const [publishing, setPublishing] = useState<boolean>(false);
+  const [statusValue, setStatusValue] = useState<"AVAILABLE" | "RESERVED" | "DRAFT">("DRAFT");
+  const [typeValue, setTypeValue] = useState<string>("APARTMENT");
+  const [amenities, setAmenities] = useState<{ title: string; symbol: string }[]>([]);
+  const [amenityTitle, setAmenityTitle] = useState<string>("");
+  const [amenitySymbol, setAmenitySymbol] = useState<string>("");
+
+  // Common amenity presets for quick selection in tabs
+  const COMMON_AMENITIES: { title: string; symbol: string }[] = [
+    { title: "Wi‑Fi", symbol: "📶" },
+    { title: "Air Conditioning", symbol: "❄️" },
+    { title: "Parking", symbol: "🚗" },
+    { title: "Furnished", symbol: "🛋️" },
+    { title: "Washer", symbol: "🧺" },
+    { title: "Private Bathroom", symbol: "🚿" },
+    { title: "Heating", symbol: "🔥" },
+    { title: "Security", symbol: "🔒" },
+  ];
+  const AMENITY_SYMBOL_PRESETS = ["📶", "❄️", "🚗", "🛋️", "🔒", "🧺", "🚿", "🔥", "🍽️"];
 
   useEffect(() => {
     (async () => {
@@ -67,15 +103,33 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
           d.listings.map((l: any) => ({
             id: String(l.id),
             image: "https://images.unsplash.com/photo-1515263487990-61b07816b324",
-            price: l.price,
+            price: Number(l.price),
             title: l.title,
             location: l.district || "",
-            distance: "",
+            description: l.description || "",
+            type: l.type || "",
+            femaleOnly: !!l.female_only,
+            roommatesAllowed: !!l.roommates_allowed,
+            studentDiscount: !!l.student_discount,
+            status: l.status,
+            locationLink: l.location_link || "",
+            bedrooms: l.bedrooms ?? null,
+            bathrooms: l.bathrooms ?? null,
+            area: l.area ?? null,
+            idType: l.id_type || "",
+            idNumber: l.owner_identification_id || "",
+            deedNumber: l.deed_number || "",
+            amenities: getAmenitiesForListing(l.id),
           }))
         );
       } catch (_) {
         // keep mock
       }
+      try {
+        const opts = await fetchDistrictOptions();
+        // Ensure alphabetical ordering by label on the client as well
+        setDistrictOptions(opts.sort((a, b) => a.label.localeCompare(b.label)));
+      } catch (_) {}
     })();
   }, []);
 
@@ -154,11 +208,11 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm text-muted-foreground">
-                    Verified
+                    Verified Listings
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl text-foreground">{stats?.available ?? 10}</div>
+                  <div className="text-3xl text-foreground">{stats ? stats.available + stats.reserved : 10}</div>
                 </CardContent>
               </Card>
 
@@ -181,111 +235,288 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                   <CardTitle>Create New Listing</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-6">
-                    <div className="grid md:grid-cols-2 gap-6">
-                      <div>
-                        <Label htmlFor="title">Property Title</Label>
-                        <Input id="title" placeholder="e.g., Modern Studio Apartment" value={title} onChange={(e) => setTitle(e.target.value)} />
-                      </div>
-                      <div>
-                        <Label htmlFor="price">Monthly Rent (SAR)</Label>
-                        <Input id="price" type="number" placeholder="1800" value={price as any} onChange={(e) => setPrice(Number(e.target.value))} />
-                      </div>
-                    </div>
-
-                    <div className="grid md:grid-cols-2 gap-6">
-                      <div>
-                        <Label htmlFor="location">Location</Label>
-                        <Input id="location" placeholder="e.g., Al Malqa, Riyadh" value={district} onChange={(e) => setDistrict(e.target.value)} />
-                      </div>
-                      <div>
-                        <Label htmlFor="distance">Distance from Campus (km)</Label>
-                        <Input id="distance" type="number" placeholder="0.8" />
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="description">Description</Label>
-                      <Textarea id="description" placeholder="Describe your property..." rows={4} value={description} onChange={(e) => setDescription(e.target.value)} />
-                    </div>
-
-                    <div className="grid md:grid-cols-3 gap-6">
-                      <div>
-                        <Label htmlFor="bedrooms">Bedrooms</Label>
-                        <Input id="bedrooms" type="number" placeholder="1" />
-                      </div>
-                      <div>
-                        <Label htmlFor="bathrooms">Bathrooms</Label>
-                        <Input id="bathrooms" type="number" placeholder="1" />
-                      </div>
-                      <div>
-                        <Label htmlFor="area">Area (m²)</Label>
-                        <Input id="area" type="number" placeholder="45" />
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label>Property Photos</Label>
-                      <div className="mt-2 border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-colors">
-                        <PlusCircle className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                        <p className="text-sm text-muted-foreground">
-                          Click to upload photos
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label htmlFor="female-only">Female Only</Label>
-                          <p className="text-sm text-muted-foreground">
-                            This property is for female tenants only
-                          </p>
+                  <Tabs defaultValue="details">
+                    <TabsList className="mb-4">
+                      <TabsTrigger value="details">Details</TabsTrigger>
+                      <TabsTrigger value="amenities">Amenities</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="details">
+                      <div className="space-y-6">
+                        <div className="grid md:grid-cols-2 gap-6">
+                          <div>
+                            <Label htmlFor="title">Property Title</Label>
+                            <Input id="title" placeholder="e.g., Modern Studio Apartment" value={title} onChange={(e) => setTitle(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label htmlFor="price">Monthly Rent (SAR)</Label>
+                            <Input id="price" type="number" placeholder="1800" value={price as any} onChange={(e) => setPrice(Number(e.target.value))} />
+                          </div>
                         </div>
-                        <Switch
-                          id="female-only"
-                          checked={femaleOnly}
-                          onCheckedChange={setFemaleOnly}
-                        />
-                      </div>
 
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label htmlFor="student-discount">Student Discount</Label>
-                          <p className="text-sm text-muted-foreground">
-                            Offer special rates for students
-                          </p>
+                        <div className="grid md:grid-cols-2 gap-6">
+                          <div>
+                            <Label>District</Label>
+                            <Select value={districtValue} onValueChange={setDistrictValue}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {districtOptions.map((opt) => (
+                                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label htmlFor="location_link">Location Link</Label>
+                            <Input id="location_link" type="url" placeholder="https://maps.google.com/..." value={locationLink} onChange={(e) => setLocationLink(e.target.value)} />
+                          </div>
                         </div>
-                        <Switch
-                          id="student-discount"
-                          checked={studentDiscount}
-                          onCheckedChange={setStudentDiscount}
-                        />
-                      </div>
-                    </div>
 
-                    <div className="flex gap-3">
-                      <Button className="flex-1" onClick={async () => {
-                        try {
-                          const { create } = await import("../services/listings");
-                          const created = await create({
-                            id_type: "NATIONAL_ID",
-                            owner_identification_id: "0000000000",
-                            deed_number: "0000000000",
-                            title,
-                            description,
-                            price: typeof price === "number" ? price : 0,
-                            type: "APARTMENT",
-                            female_only: femaleOnly,
-                            roommates_allowed: false,
-                            student_discount: studentDiscount,
-                            status: "DRAFT",
-                            district,
-                            location_link: "",
-                          });
-                          setShowNewListing(false);
-                          setListings((prev) => [{ id: String(created.id), image: "https://images.unsplash.com/photo-1515263487990-61b07816b324", price: created.price, title: created.title, location: created.district, distance: "" }, ...prev]);
-                        } catch (_) {}
+                        <div className="grid md:grid-cols-3 gap-6">
+                          <div>
+                            <Label>ID Type</Label>
+                            <Select value={idType} onValueChange={setIdType}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select ID Type" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="National_ID">National ID</SelectItem>
+                                <SelectItem value="Resident_ID">Resident ID</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label htmlFor="id_number">ID Number</Label>
+                            <Input
+                              id="id_number"
+                              inputMode="numeric"
+                              placeholder="10 digits"
+                              value={idNumber}
+                              onChange={(e) => setIdNumber(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                            />
+                            <p className="text-xs text-muted-foreground mt-1">Exactly 10 digits</p>
+                          </div>
+                          <div>
+                            <Label htmlFor="deed_number">Deed Number</Label>
+                            <Input
+                              id="deed_number"
+                              inputMode="numeric"
+                              placeholder="10 digits"
+                              value={deedNumber}
+                              onChange={(e) => setDeedNumber(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                            />
+                            <p className="text-xs text-muted-foreground mt-1">Exactly 10 digits</p>
+                          </div>
+                        </div>
+
+                        <div className="grid md:grid-cols-2 gap-6">
+                          <div>
+                            <Label>Status</Label>
+                            <Select value={statusValue} onValueChange={(v: "DRAFT" | "AVAILABLE" | "RESERVED") => setStatusValue(v)}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="DRAFT">Draft</SelectItem>
+                                <SelectItem value="AVAILABLE">Available</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label>Property Type</Label>
+                            <Select value={typeValue} onValueChange={setTypeValue}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select type" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="APARTMENT">Apartment</SelectItem>
+                                <SelectItem value="STUDIO">Studio</SelectItem>
+                                <SelectItem value="OTHER">Other</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        <div>
+                          <Label htmlFor="description">Description</Label>
+                          <Textarea id="description" placeholder="Describe your property..." rows={4} value={description} onChange={(e) => setDescription(e.target.value)} />
+                        </div>
+
+                        <div className="grid md:grid-cols-3 gap-6">
+                          <div>
+                            <Label htmlFor="bedrooms">Bedrooms</Label>
+                            <Input id="bedrooms" type="number" placeholder="1" value={bedrooms as any} onChange={(e) => setBedrooms(Number(e.target.value))} />
+                          </div>
+                          <div>
+                            <Label htmlFor="bathrooms">Bathrooms</Label>
+                            <Input id="bathrooms" type="number" placeholder="1" value={bathrooms as any} onChange={(e) => setBathrooms(Number(e.target.value))} />
+                          </div>
+                          <div>
+                            <Label htmlFor="area">Area (m²)</Label>
+                            <Input id="area" type="number" placeholder="45" value={area as any} onChange={(e) => setArea(Number(e.target.value))} />
+                          </div>
+                        </div>
+
+                        <div>
+                          <Label>Property Photos</Label>
+                          <div className="mt-2 border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-colors">
+                            <PlusCircle className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                            <p className="text-sm text-muted-foreground">
+                              Click to upload photos
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <Label htmlFor="female-only">Female Only</Label>
+                              <p className="text-sm text-muted-foreground">
+                                This property is for female tenants only
+                              </p>
+                            </div>
+                            <Switch
+                              id="female-only"
+                              checked={femaleOnly}
+                              onCheckedChange={setFemaleOnly}
+                            />
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <Label htmlFor="student-discount">Student Discount</Label>
+                              <p className="text-sm text-muted-foreground">
+                                Offer special rates for students
+                              </p>
+                            </div>
+                            <Switch
+                              id="student-discount"
+                              checked={studentDiscount}
+                              onCheckedChange={setStudentDiscount}
+                            />
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <Label htmlFor="roommates-allowed">Roommates Allowed</Label>
+                              <p className="text-sm text-muted-foreground">
+                                Allow tenants to share with roommates
+                              </p>
+                            </div>
+                            <Switch
+                              id="roommates-allowed"
+                              checked={roommatesAllowed}
+                              onCheckedChange={setRoommatesAllowed}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                          {formError && (
+                            <div className="text-red-600 text-sm mb-2">{formError}</div>
+                          )}
+                          <Button className="flex-1" disabled={publishing} onClick={async () => {
+                            try {
+                              // Frontend validation aligned with DB constraints
+                              if (!idType) {
+                                setFormError("Please select an ID type.");
+                                return;
+                              }
+                              if (statusValue !== "DRAFT") {
+                                if (idNumber.length !== 10 || !/^\d{10}$/.test(idNumber)) {
+                                  setFormError("ID number must be exactly 10 digits.");
+                                  return;
+                                }
+                                if (deedNumber.length !== 10 || !/^\d{10}$/.test(deedNumber)) {
+                                  setFormError("Deed number must be exactly 10 digits.");
+                                  return;
+                                }
+                              }
+                              setFormError(null);
+                              setPublishing(true);
+                              const { create } = await import("../services/listings");
+                              const created = await create({
+                                id_type: idType, // 'National_ID' or 'Resident_ID'
+                                owner_identification_id: statusValue === "DRAFT" ? "0000000000" : idNumber,
+                                deed_number: statusValue === "DRAFT" ? "0000000000" : deedNumber,
+                                title,
+                                description,
+                                price: typeof price === "number" ? price : 0,
+                                type: typeValue,
+                                female_only: femaleOnly,
+                                roommates_allowed: roommatesAllowed,
+                                student_discount: studentDiscount,
+                                status: statusValue,
+                                district: districtValue,
+                                location_link: locationLink,
+                                bedrooms: bedrooms === "" ? undefined : Number(bedrooms),
+                                bathrooms: bathrooms === "" ? undefined : Number(bathrooms),
+                                area: area === "" ? undefined : Number(area),
+                              });
+                              // Persist amenities client-side since backend doesn't yet support them
+                              try { setAmenitiesForListing(created.id, amenities); } catch (_) {}
+                              setShowNewListing(false);
+                              const label = districtOptions.find((o) => o.value === districtValue)?.label || created.district;
+                              // Refresh dashboard from backend to reflect DB state
+                              try {
+                                const { dashboard } = await import("../services/listings");
+                                const d = await dashboard();
+                                setStats({ total_listings: d.total_listings, available: d.available, reserved: d.reserved, draft: d.draft });
+                                setListings(
+                                  d.listings.map((l: any) => ({
+                                    id: String(l.id),
+                                    image: "https://images.unsplash.com/photo-1515263487990-61b07816b324",
+                                    price: Number(l.price),
+                                    title: l.title,
+                                    location: l.district || label,
+                                    description: l.description || "",
+                                    type: l.type || "",
+                                    femaleOnly: !!l.female_only,
+                                    roommatesAllowed: !!l.roommates_allowed,
+                                    studentDiscount: !!l.student_discount,
+                                    status: l.status,
+                                    locationLink: l.location_link || "",
+                                    bedrooms: l.bedrooms ?? null,
+                                    bathrooms: l.bathrooms ?? null,
+                                    area: l.area ?? null,
+                                    amenities: getAmenitiesForListing(l.id),
+                                  }))
+                                );
+                              } catch (_) {
+                                setListings((prev) => [{ id: String(created.id), image: "https://images.unsplash.com/photo-1515263487990-61b07816b324", price: created.price, title: created.title, location: label, roommatesAllowed, type: typeValue, status: statusValue, femaleOnly, studentDiscount, amenities }, ...prev]);
+                              }
+                            } catch (e: any) {
+                              // Show detailed backend errors
+                              let msg = "Failed to publish listing.";
+                          const data = e?.response?.data;
+                          if (data) {
+                            if (typeof data === "string") {
+                              msg = data;
+                            } else if (typeof data === "object") {
+                              const parts: string[] = [];
+                              for (const [key, val] of Object.entries(data)) {
+                                if (Array.isArray(val)) {
+                                  parts.push(`${key}: ${val.join(", ")}`);
+                                } else if (typeof val === "string") {
+                                  parts.push(`${key}: ${val}`);
+                                } else {
+                                  try {
+                                    parts.push(`${key}: ${JSON.stringify(val)}`);
+                                  } catch {
+                                    // ignore
+                                  }
+                                }
+                              }
+                              if (parts.length) msg = parts.join("\n");
+                            }
+                          } else if (e?.message) {
+                            msg = e.message;
+                          }
+                          setFormError(msg);
+                        } finally {
+                          setPublishing(false);
+                        }
                       }}>Publish Listing</Button>
                       <Button
                         variant="outline"
@@ -293,8 +524,191 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                       >
                         Cancel
                       </Button>
-                    </div>
-                  </div>
+                      </div>
+                      </div>
+                    </TabsContent>
+                    <TabsContent value="amenities">
+                      <div className="space-y-6">
+                        <div>
+                          <Label>Common amenities</Label>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {COMMON_AMENITIES.map((opt) => {
+                              const selected = amenities.some((a) => a.title === opt.title);
+                              return (
+                                <Button
+                                  key={opt.title}
+                                  type="button"
+                                  variant={selected ? "default" : "outline"}
+                                  className={selected ? "bg-primary text-primary-foreground" : ""}
+                                  onClick={() => {
+                                    setAmenities((prev) => {
+                                      const exists = prev.find((a) => a.title === opt.title);
+                                      if (exists) return prev.filter((a) => a.title !== opt.title);
+                                      return [...prev, { title: opt.title, symbol: opt.symbol }];
+                                    });
+                                  }}
+                                >
+                                  <span className="mr-2">{opt.symbol}</span>
+                                  {opt.title}
+                                </Button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        <div>
+                          <Label>Add custom amenity</Label>
+                          <div className="mt-2 space-y-3">
+                            <div className="grid md:grid-cols-2 gap-3">
+                              <Input
+                                placeholder="Amenity title (≤ 30 chars)"
+                                maxLength={30}
+                                value={amenityTitle}
+                                onChange={(e) => setAmenityTitle(e.target.value)}
+                              />
+                              <Input
+                                placeholder="Symbol (emoji or short text)"
+                                value={amenitySymbol}
+                                onChange={(e) => setAmenitySymbol(e.target.value.slice(0, 6))}
+                              />
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {AMENITY_SYMBOL_PRESETS.map((s) => (
+                                <Button
+                                  key={s}
+                                  type="button"
+                                  variant={amenitySymbol === s ? "default" : "outline"}
+                                  className={amenitySymbol === s ? "bg-primary text-primary-foreground" : ""}
+                                  onClick={() => setAmenitySymbol(s)}
+                                >
+                                  {s}
+                                </Button>
+                              ))}
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                type="button"
+                                onClick={() => {
+                                  const t = amenityTitle.trim();
+                                  const s = amenitySymbol.trim();
+                                  if (!t) return;
+                                  if (t.length > 30) return;
+                                  setAmenities((prev) => [...prev, { title: t, symbol: s || "•" }]);
+                                  setAmenityTitle("");
+                                  setAmenitySymbol("");
+                                }}
+                              >
+                                Add Amenity
+                              </Button>
+                              <Button type="button" variant="outline" onClick={() => { setAmenityTitle(""); setAmenitySymbol(""); }}>Clear</Button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {Array.isArray(amenities) && amenities.length > 0 && (
+                          <div>
+                            <Label>Selected amenities</Label>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {amenities.map((a, idx) => (
+                                <div key={`${a.title}-${idx}`} className="flex items-center gap-2 px-2 py-1 rounded-md border border-border text-sm">
+                                  <span className="text-primary">{a.symbol || "•"}</span>
+                                  <span>{a.title}</span>
+                                  <Button size="sm" variant="ghost" onClick={() => setAmenities((prev) => prev.filter((_, i) => i !== idx))}>Remove</Button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="flex gap-3">
+                          {formError && (
+                            <div className="text-red-600 text-sm mb-2">{formError}</div>
+                          )}
+                          <Button className="flex-1" disabled={publishing} onClick={async () => {
+                            try {
+                              if (!idType) { setFormError("Please select an ID type."); return; }
+                              if (statusValue !== "DRAFT") {
+                                if (idNumber.length !== 10 || !/^\d{10}$/.test(idNumber)) { setFormError("ID number must be exactly 10 digits."); return; }
+                                if (deedNumber.length !== 10 || !/^\d{10}$/.test(deedNumber)) { setFormError("Deed number must be exactly 10 digits."); return; }
+                              }
+                              setFormError(null);
+                              setPublishing(true);
+                              const { create } = await import("../services/listings");
+                              const created = await create({
+                                id_type: idType,
+                                owner_identification_id: statusValue === "DRAFT" ? "0000000000" : idNumber,
+                                deed_number: statusValue === "DRAFT" ? "0000000000" : deedNumber,
+                                title,
+                                description,
+                                price: typeof price === "number" ? price : 0,
+                                type: typeValue,
+                                female_only: femaleOnly,
+                                roommates_allowed: roommatesAllowed,
+                                student_discount: studentDiscount,
+                                status: statusValue,
+                                district: districtValue,
+                                location_link: locationLink,
+                                bedrooms: bedrooms === "" ? undefined : Number(bedrooms),
+                                bathrooms: bathrooms === "" ? undefined : Number(bathrooms),
+                                area: area === "" ? undefined : Number(area),
+                              });
+                              setShowNewListing(false);
+                              const label = districtOptions.find((o) => o.value === districtValue)?.label || created.district;
+                              try {
+                                const { dashboard } = await import("../services/listings");
+                                const d = await dashboard();
+                                setStats({ total_listings: d.total_listings, available: d.available, reserved: d.reserved, draft: d.draft });
+                                setListings(
+                                  d.listings.map((l: any) => ({
+                                    id: String(l.id),
+                                    image: "https://images.unsplash.com/photo-1515263487990-61b07816b324",
+                                    price: Number(l.price),
+                                    title: l.title,
+                                    location: l.district || label,
+                                    description: l.description || "",
+                                    type: l.type || "",
+                                    femaleOnly: !!l.female_only,
+                                    roommatesAllowed: !!l.roommates_allowed,
+                                    studentDiscount: !!l.student_discount,
+                                    status: l.status,
+                                    locationLink: l.location_link || "",
+                                    bedrooms: l.bedrooms ?? null,
+                                    bathrooms: l.bathrooms ?? null,
+                                    area: l.area ?? null,
+                                    amenities: l.amenities ?? [],
+                                  }))
+                                );
+                              } catch (_) {
+                                setListings((prev) => [{ id: String(created.id), image: "https://images.unsplash.com/photo-1515263487990-61b07816b324", price: created.price, title: created.title, location: label, roommatesAllowed, type: typeValue, status: statusValue, femaleOnly, studentDiscount, amenities }, ...prev]);
+                              }
+                            } catch (e: any) {
+                              let msg = "Failed to publish listing.";
+                              const data = e?.response?.data;
+                              if (data) {
+                                if (typeof data === "string") { msg = data; }
+                                else if (typeof data === "object") {
+                                  const parts: string[] = [];
+                                  for (const [key, val] of Object.entries(data)) {
+                                    if (Array.isArray(val)) parts.push(`${key}: ${val.join(", ")}`);
+                                    else if (typeof val === "string") parts.push(`${key}: ${val}`);
+                                    else {
+                                      try { parts.push(`${key}: ${JSON.stringify(val)}`); } catch {}
+                                    }
+                                  }
+                                  if (parts.length) msg = parts.join("\n");
+                                }
+                              } else if (e?.message) { msg = e.message; }
+                              setFormError(msg);
+                            } finally {
+                              setPublishing(false);
+                            }
+                          }}>Publish Listing</Button>
+                          <Button variant="outline" onClick={() => setShowNewListing(false)}>Cancel</Button>
+                        </div>
+                      </div>
+                    </TabsContent>
+                    
+                  </Tabs>
                 </CardContent>
               </Card>
             )}
@@ -306,30 +720,122 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {mockListings.map((listing) => (
+                  {listings.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No properties yet. Create your first listing above.</p>
+                  ) : null}
+                  {listings.length > 0 && listings.map((listing) => (
                     <div
                       key={listing.id}
-                      className="flex items-center gap-4 p-4 border border-border rounded-lg hover:shadow-md transition-shadow"
+                      className={`flex items-center gap-4 p-4 border rounded-lg hover:shadow-md transition-shadow ${
+                        listing.status === "RESERVED" ? "bg-red-600/15 border-red-700" : "border-border"
+                      }`}
                     >
                       <img
                         src={listing.image}
                         alt={listing.title}
-                        className="w-24 h-24 object-cover rounded-lg"
+                        className="w-24 h-20 sm:w-28 sm:h-24 md:w-32 md:h-24 object-cover rounded-lg cursor-pointer"
+                        onClick={() => onNavigate("listing", String(listing.id))}
                       />
                       <div className="flex-1">
                         <h3 className="text-foreground mb-1">{listing.title}</h3>
-                        <p className="text-sm text-muted-foreground mb-2">
-                          {listing.location}
+                        <p className="text-sm text-muted-foreground mb-1">
+                          {districtOptions.find((opt) => opt.value === listing.location)?.label || listing.location}
                         </p>
+                        {listing.description && (
+                          <p className="text-sm text-muted-foreground mb-2">
+                            {String(listing.description).slice(0, 140)}
+                            {String(listing.description).length > 140 ? "..." : ""}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
+                          {listing.bedrooms != null && <span>{listing.bedrooms} BR</span>}
+                          {listing.bathrooms != null && <span>{listing.bathrooms} Bath</span>}
+                          {listing.area != null && <span>{listing.area} m²</span>}
+                        </div>
+                        <div className="flex items-center gap-2 mb-2">
+                          {listing.type && (
+                            <Badge className={
+                              ((listing.type || "").toUpperCase()) === "APARTMENT"
+                                ? "bg-indigo-600 text-white hover:bg-indigo-700"
+                                : ((listing.type || "").toUpperCase()) === "STUDIO"
+                                ? "bg-cyan-600 text-white hover:bg-cyan-700"
+                                : "bg-gray-600 text-white hover:bg-gray-700"
+                            }>
+                              {listing.type}
+                            </Badge>
+                          )}
+                          {listing.femaleOnly && <Badge className="bg-purple-600 text-white hover:bg-purple-700">Female only</Badge>}
+                          {listing.roommatesAllowed && <Badge className="bg-yellow-600 text-white hover:bg-yellow-700">Roommates allowed</Badge>}
+                          {listing.studentDiscount && <Badge className="bg-blue-600 text-white hover:bg-blue-700">Student discount</Badge>}
+                          {listing.status && (
+                            <Badge className={
+                              listing.status === "AVAILABLE"
+                                ? "bg-green-600 text-white hover:bg-green-700"
+                              : listing.status === "RESERVED"
+                                ? "bg-red-600 text-white hover:bg-red-700"
+                                : "bg-gray-600 text-white hover:bg-gray-700"
+                            }>
+                              {listing.status}
+                            </Badge>
+                          )}
+                        </div>
+                        {Array.isArray(listing.amenities) && listing.amenities.length > 0 && (
+                          <div className="flex items-center gap-2 mb-2 flex-wrap">
+                            {listing.amenities.map((a: any, idx: number) => (
+                              <div key={idx} className="flex items-center gap-2 px-2 py-1 rounded-md border border-border text-sm">
+                                <span className="text-primary">{a.symbol || "•"}</span>
+                                <span>{a.title}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                         <p className="text-primary">
                           {listing.price.toLocaleString()} SAR/mo
                         </p>
+                        {listing.locationLink && (
+                          <a
+                            href={listing.locationLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-sm text-primary underline mt-1 inline-block"
+                          >
+                            View location
+                          </a>
+                        )}
                       </div>
                       <div className="flex gap-2">
-                        <Button variant="outline" size="icon">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => {
+                            setEditingListing(listing);
+                            setEditOpen(true);
+                          }}
+                        >
                           <Edit className="w-4 h-4" />
                         </Button>
-                        <Button variant="outline" size="icon">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={async () => {
+                            try {
+                              if (confirm("Delete this listing?")) {
+                                const { remove } = await import("../services/listings");
+                                await remove(listing.id);
+                                setListings((prev) => prev.filter((l) => l.id !== listing.id));
+                                try { removeAmenitiesForListing(listing.id); } catch (_) {}
+                                // Refresh dashboard stats after deletion
+                                try {
+                                  const { dashboard } = await import("../services/listings");
+                                  const d = await dashboard();
+                                  setStats({ total_listings: d.total_listings, available: d.available, reserved: d.reserved, draft: d.draft });
+                                } catch (_) {}
+                              }
+                            } catch (e) {
+                              // optionally surface error
+                            }
+                          }}
+                        >
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
@@ -341,6 +847,406 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
           </div>
         </div>
       </div>
+
+      {/* Edit Listing Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Listing</DialogTitle>
+          </DialogHeader>
+          {editingListing && (
+            <div className="space-y-6">
+              <Tabs defaultValue="details">
+                <TabsList className="mb-4">
+                  <TabsTrigger value="details">Details</TabsTrigger>
+                  <TabsTrigger value="amenities">Amenities</TabsTrigger>
+                </TabsList>
+                <TabsContent value="details">
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <Label htmlFor="edit_title">Property Title</Label>
+                  <Input
+                    id="edit_title"
+                    defaultValue={editingListing.title}
+                    onChange={(e) => (editingListing.title = e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit_price">Monthly Rent (SAR)</Label>
+                  <Input
+                    id="edit_price"
+                    type="number"
+                    defaultValue={editingListing.price}
+                    onChange={(e) => (editingListing.price = Number(e.target.value))}
+                  />
+                </div>
+              </div>
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <Label>District</Label>
+                  <Select
+                    value={editingListing.location || ""}
+                    onValueChange={(v: string) => (editingListing.location = v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {districtOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="edit_location_link">Location Link</Label>
+                  <Input
+                    id="edit_location_link"
+                    type="url"
+                    defaultValue={editingListing.locationLink}
+                    onChange={(e) => (editingListing.locationLink = e.target.value)}
+                  />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="edit_description">Description</Label>
+                <Textarea
+                  id="edit_description"
+                  defaultValue={editingListing.description || ""}
+                  onChange={(e) => (editingListing.description = e.target.value)}
+                />
+              </div>
+              <div className="grid md:grid-cols-3 gap-6">
+                <div>
+                  <Label>ID Type</Label>
+                  <Select
+                    value={editingListing.idType || ""}
+                    onValueChange={(v: "National_ID" | "Resident_ID") => setEditingListing((prev: any) => ({ ...prev, idType: v }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select ID Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="National_ID">National ID</SelectItem>
+                      <SelectItem value="Resident_ID">Resident ID</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="edit_id_number">ID Number</Label>
+                  <Input
+                    id="edit_id_number"
+                    inputMode="numeric"
+                    value={editingListing.idNumber || ""}
+                    onChange={(e) => setEditingListing((prev: any) => ({ ...prev, idNumber: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit_deed_number">Deed Number</Label>
+                  <Input
+                    id="edit_deed_number"
+                    inputMode="numeric"
+                    value={editingListing.deedNumber || ""}
+                    onChange={(e) => setEditingListing((prev: any) => ({ ...prev, deedNumber: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
+                  />
+                </div>
+              </div>
+              <div className="grid md:grid-cols-3 gap-6">
+                <div>
+                  <Label htmlFor="edit_bedrooms">Bedrooms</Label>
+                  <Input
+                    id="edit_bedrooms"
+                    type="number"
+                    defaultValue={editingListing.bedrooms ?? ""}
+                    onChange={(e) => (editingListing.bedrooms = Number(e.target.value))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit_bathrooms">Bathrooms</Label>
+                  <Input
+                    id="edit_bathrooms"
+                    type="number"
+                    defaultValue={editingListing.bathrooms ?? ""}
+                    onChange={(e) => (editingListing.bathrooms = Number(e.target.value))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit_area">Area (m²)</Label>
+                  <Input
+                    id="edit_area"
+                    type="number"
+                    defaultValue={editingListing.area ?? ""}
+                    onChange={(e) => (editingListing.area = Number(e.target.value))}
+                  />
+                </div>
+              </div>
+              <div>
+                <Label>Property Type</Label>
+                <Select
+                  value={editingListing.type || "APARTMENT"}
+                  onValueChange={(v: "APARTMENT" | "STUDIO" | "OTHER") => setEditingListing((prev: any) => ({ ...prev, type: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="APARTMENT">Apartment</SelectItem>
+                    <SelectItem value="STUDIO">Studio</SelectItem>
+                    <SelectItem value="OTHER">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="edit_female_only"
+                    checked={!!editingListing.femaleOnly}
+                    onCheckedChange={(v: boolean) => setEditingListing((prev: any) => ({ ...prev, femaleOnly: v }))}
+                  />
+                  <Label htmlFor="edit_female_only">Female Only</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="edit_student_discount"
+                    checked={!!editingListing.studentDiscount}
+                    onCheckedChange={(v: boolean) => setEditingListing((prev: any) => ({ ...prev, studentDiscount: v }))}
+                  />
+                  <Label htmlFor="edit_student_discount">Student Discount</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="edit_roommates_allowed"
+                    checked={!!editingListing.roommatesAllowed}
+                    onCheckedChange={(v: boolean) => setEditingListing((prev: any) => ({ ...prev, roommatesAllowed: v }))}
+                  />
+                  <Label htmlFor="edit_roommates_allowed">Roommates Allowed</Label>
+                </div>
+              </div>
+              </TabsContent>
+              <TabsContent value="amenities">
+              {/* Amenities editor for edit dialog */}
+              <div>
+                <Label>Amenities (optional)</Label>
+                <div className="mt-2 space-y-5">
+                  {/* Quick-pick common amenities */}
+                  <div>
+                    <Label className="text-sm">Common amenities</Label>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {COMMON_AMENITIES.map((opt) => {
+                        const selected = Array.isArray(editingListing.amenities) && editingListing.amenities.some((a: any) => a.title === opt.title);
+                        return (
+                          <Button
+                            key={opt.title}
+                            type="button"
+                            variant={selected ? "default" : "outline"}
+                            className={selected ? "bg-primary text-primary-foreground" : ""}
+                            onClick={() => {
+                              setEditingListing((prev: any) => {
+                                const exists = (prev.amenities || []).find((a: any) => a.title === opt.title);
+                                const next = exists
+                                  ? (prev.amenities || []).filter((a: any) => a.title !== opt.title)
+                                  : [...(prev.amenities || []), { title: opt.title, symbol: opt.symbol }];
+                                return { ...prev, amenities: next };
+                              });
+                            }}
+                          >
+                            <span className="mr-2">{opt.symbol}</span>
+                            {opt.title}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Custom amenity creator with icon presets */}
+                  <div>
+                    <Label className="text-sm">Add custom amenity</Label>
+                    <div className="mt-2 space-y-3">
+                      <div className="grid md:grid-cols-2 gap-3">
+                        <Input
+                          placeholder="Amenity title (≤ 30 chars)"
+                          maxLength={30}
+                          onChange={(e) => setAmenityTitle(e.target.value)}
+                          value={amenityTitle}
+                        />
+                        <Input
+                          placeholder="Symbol (emoji or short text)"
+                          onChange={(e) => setAmenitySymbol(e.target.value.slice(0, 6))}
+                          value={amenitySymbol}
+                        />
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {AMENITY_SYMBOL_PRESETS.map((s) => (
+                          <Button
+                            key={s}
+                            type="button"
+                            variant={amenitySymbol === s ? "default" : "outline"}
+                            className={amenitySymbol === s ? "bg-primary text-primary-foreground" : ""}
+                            onClick={() => setAmenitySymbol(s)}
+                          >
+                            {s}
+                          </Button>
+                        ))}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            const t = amenityTitle.trim();
+                            const s = amenitySymbol.trim();
+                            if (!t) return;
+                            if (t.length > 30) return;
+                            setEditingListing((prev: any) => ({ ...prev, amenities: [...(prev.amenities || []), { title: t, symbol: s || "•" }] }));
+                            setAmenityTitle("");
+                            setAmenitySymbol("");
+                          }}
+                        >
+                          Add Amenity
+                        </Button>
+                        <Button type="button" variant="outline" onClick={() => { setAmenityTitle(""); setAmenitySymbol(""); }}>Clear</Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Selected amenities preview */}
+                  {Array.isArray(editingListing.amenities) && editingListing.amenities.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {editingListing.amenities.map((a: any, idx: number) => (
+                        <div key={idx} className="flex items-center gap-2 px-2 py-1 rounded-md border border-border text-sm">
+                          <span className="text-primary">{a.symbol || "•"}</span>
+                          <span>{a.title}</span>
+                          <Button size="sm" variant="ghost" onClick={() => setEditingListing((prev: any) => ({ ...prev, amenities: (prev.amenities || []).filter((_: any, i: number) => i !== idx) }))}>Remove</Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              </TabsContent>
+              </Tabs>
+              <div>
+                <Label>Status</Label>
+                <Select
+                  value={editingListing.status || "DRAFT"}
+                  onValueChange={(v: "DRAFT" | "AVAILABLE" | "RESERVED") => setEditingListing((prev: any) => ({ ...prev, status: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="DRAFT">Draft</SelectItem>
+                    <SelectItem value="AVAILABLE">Available</SelectItem>
+                    <SelectItem value="RESERVED">Reserved</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  className="flex-1"
+                  onClick={async () => {
+                    try {
+                      const { update } = await import("../services/listings");
+                      const isDraft = editingListing.status === "DRAFT";
+                      const payload: any = {
+                        title: editingListing.title,
+                        price: Number(editingListing.price),
+                        district: editingListing.location,
+                        location_link: editingListing.locationLink,
+                        description: editingListing.description,
+                        bedrooms: editingListing.bedrooms ?? null,
+                        bathrooms: editingListing.bathrooms ?? null,
+                        area: editingListing.area ?? null,
+                        type: editingListing.type,
+                        female_only: !!editingListing.femaleOnly,
+                        roommates_allowed: !!editingListing.roommatesAllowed,
+                        student_discount: !!editingListing.studentDiscount,
+                        // Pass Wathq fields to satisfy backend validation during partial update
+                        id_type: editingListing.idType || undefined,
+                        owner_identification_id: isDraft ? "0000000000" : (editingListing.idNumber || undefined),
+                        deed_number: isDraft ? "0000000000" : (editingListing.deedNumber || undefined),
+                        status: editingListing.status,
+                      };
+                      if (!isDraft) {
+                        // Basic client-side validation for active statuses
+                        if (!editingListing.idNumber || editingListing.idNumber.length !== 10 || !/^\d{10}$/.test(editingListing.idNumber)) {
+                          alert("ID number must be exactly 10 digits to set Available/Reserved.");
+                          return;
+                        }
+                        if (!editingListing.deedNumber || editingListing.deedNumber.length !== 10 || !/^\d{10}$/.test(editingListing.deedNumber)) {
+                          alert("Deed number must be exactly 10 digits to set Available/Reserved.");
+                          return;
+                        }
+                        if (editingListing.idNumber === "0000000000" || editingListing.deedNumber === "0000000000") {
+                          alert("ID and Deed cannot be all zeros for Available/Reserved status.");
+                          return;
+                        }
+                        if (!editingListing.idType) {
+                          alert("Please select an ID Type for Available/Reserved status.");
+                          return;
+                        }
+                      }
+                      const updated = await update(editingListing.id, payload);
+                      // Persist amenities client-side alongside backend update
+                      try { setAmenitiesForListing(editingListing.id, editingListing.amenities || []); } catch (_) {}
+                        setListings((prev) => prev.map((l) => (l.id === editingListing.id ? {
+                          ...l,
+                          title: updated.title,
+                          price: Number(updated.price),
+                          location: updated.district,
+                          description: updated.description,
+                          type: updated.type,
+                          bedrooms: updated.bedrooms ?? null,
+                          bathrooms: updated.bathrooms ?? null,
+                          area: updated.area ?? null,
+                          femaleOnly: !!updated.female_only,
+                          roommatesAllowed: !!updated.roommates_allowed,
+                          studentDiscount: !!updated.student_discount,
+                          status: updated.status,
+                          idType: updated.id_type,
+                          idNumber: updated.owner_identification_id,
+                          deedNumber: updated.deed_number,
+                          amenities: editingListing.amenities || l.amenities,
+                        } : l)));
+                      // Refresh dashboard stats to reflect DB state
+                      try {
+                        const { dashboard } = await import("../services/listings");
+                        const d = await dashboard();
+                        setStats({ total_listings: d.total_listings, available: d.available, reserved: d.reserved, draft: d.draft });
+                      } catch (_) {}
+                      setEditOpen(false);
+                    } catch (e: any) {
+                      let msg = "Failed to save changes";
+                      try {
+                        const data = e?.response?.data;
+                        if (typeof data === "string") msg = data;
+                        else if (data?.detail) msg = String(data.detail);
+                        else if (data && typeof data === "object") {
+                          const parts: string[] = [];
+                          for (const [k, v] of Object.entries(data)) {
+                            if (Array.isArray(v)) parts.push(`${k}: ${v.join(", ")}`);
+                            else parts.push(`${k}: ${String(v)}`);
+                          }
+                          if (parts.length) msg = parts.join("\n");
+                        } else if (e?.message) {
+                          msg = String(e.message);
+                        }
+                      } catch (_) {}
+                      alert(msg);
+                    }
+                  }}
+                >
+                  Save Changes
+                </Button>
+                <Button variant="outline" className="flex-1" onClick={() => setEditOpen(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
