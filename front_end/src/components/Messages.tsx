@@ -127,7 +127,7 @@ export function Messages() {
         <Card className="overflow-hidden">
           <div className="grid md:grid-cols-3 h-[calc(100vh-200px)]">
             {/* Conversations List */}
-            <div className="border-r border-border bg-white">
+            <div className="border-r border-border bg-card">
               <div className="p-4 border-b border-border">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -191,7 +191,7 @@ export function Messages() {
             {/* Chat Area */}
             <div className="md:col-span-2 flex flex-col bg-secondary">
               {/* Chat Header */}
-              <div className="p-4 bg-white border-b border-border">
+              <div className="p-4 bg-card border-b border-border">
                 <div className="flex items-center gap-3">
                   <Avatar>
                     <AvatarFallback>AF</AvatarFallback>
@@ -224,7 +224,7 @@ export function Messages() {
                           className={`rounded-2xl px-4 py-2 ${
                             message.isOwn
                               ? "bg-primary text-white rounded-tr-sm"
-                              : "bg-white rounded-tl-sm"
+                              : "bg-card rounded-tl-sm"
                           }`}
                         >
                           <p className="text-sm">{message.text}</p>
@@ -243,7 +243,7 @@ export function Messages() {
               </ScrollArea>
 
               {/* Message Input */}
-              <div className="p-4 bg-white border-t border-border">
+              <div className="p-4 bg-card border-t border-border">
                 <div className="flex gap-2">
                   <Input
                     placeholder="Type a message..."

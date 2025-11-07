@@ -84,7 +84,7 @@ export function LoginRegister({
             </div>
             <div className="relative z-10">
               <div className="flex items-center gap-2 mb-8">
-                <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center">
+                <div className="w-12 h-12 bg-card rounded-lg flex items-center justify-center">
                   <span className="text-primary text-xl">US</span>
                 </div>
                 <span className="text-2xl">UniStay KSA</span>
@@ -96,19 +96,19 @@ export function LoginRegister({
               </p>
               <ul className="space-y-3">
                 <li className="flex items-center gap-2">
-                  <span className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
+                  <span className="w-6 h-6 bg-muted rounded-full flex items-center justify-center">
                     ✓
                   </span>
                   <span>Verified properties and landlords</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
+                  <span className="w-6 h-6 bg-muted rounded-full flex items-center justify-center">
                     ✓
                   </span>
                   <span>Student-friendly prices</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
+                  <span className="w-6 h-6 bg-muted rounded-full flex items-center justify-center">
                     ✓
                   </span>
                   <span>Safe and secure platform</span>

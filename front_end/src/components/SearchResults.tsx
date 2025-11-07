@@ -95,6 +95,8 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
   const [typeApartment, setTypeApartment] = useState(false);
   const [femaleOnly, setFemaleOnly] = useState(false);
   const [studentDiscount, setStudentDiscount] = useState(false);
+  const [availableOnly, setAvailableOnly] = useState(false);
+  const [roommatesOnly, setRoommatesOnly] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -107,7 +109,6 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
         setError(null);
         setLoading(true);
         const params: Record<string, any> = {};
-        if (u.role !== "landlord") params.status = "AVAILABLE";
         const data = await listListings(params);
         setItems(
           data.map((l: any) => ({
@@ -117,9 +118,9 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
             price: Number(l.price),
             title: l.title,
             location: l.district || "",
-            distance: "",
             verified: true,
             femaleOnly: !!l.female_only,
+            roommatesAllowed: !!l.roommates_allowed,
             studentDiscount: !!l.student_discount,
           }))
         );
@@ -131,38 +132,57 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
     })();
   }, []);
 
-  const selectedTypeParam = useMemo(() => {
-    const count = [typeStudio, typeShared, typeApartment].filter(Boolean).length;
-    if (count !== 1) return undefined;
-    if (typeStudio) return "STUDIO";
-    if (typeApartment) return "APARTMENT";
-    if (typeShared) return "OTHER";
-    return undefined;
+  const selectedTypes = useMemo(() => {
+    const t: string[] = [];
+    if (typeStudio) t.push("STUDIO");
+    if (typeApartment) t.push("APARTMENT");
+    if (typeShared) t.push("OTHER");
+    return t;
   }, [typeStudio, typeShared, typeApartment]);
 
-  async function applyFilters() {
+  async function applyFilters(overrides?: {
+    priceRange?: [number, number];
+    selectedTypes?: string[];
+    femaleOnly?: boolean;
+    studentDiscount?: boolean;
+    availableOnly?: boolean;
+    roommatesOnly?: boolean;
+  }) {
     try {
       setLoading(true);
       setError(null);
+      const effectivePriceRange = overrides?.priceRange ?? priceRange;
+      const effectiveSelectedTypes = overrides?.selectedTypes ?? selectedTypes;
+      const effectiveAvailableOnly = overrides?.availableOnly ?? availableOnly;
+      const effectiveFemaleOnly = overrides?.femaleOnly ?? femaleOnly;
+      const effectiveStudentDiscount = overrides?.studentDiscount ?? studentDiscount;
+      const effectiveRoommatesOnly = overrides?.roommatesOnly ?? roommatesOnly;
+
       const params: Record<string, any> = {
-        max_price: priceRange[1],
+        max_price: effectivePriceRange[1],
       };
-      if (currentUser?.role !== "landlord") params.status = "AVAILABLE";
-      if (femaleOnly) params.female_only = true;
-      if (studentDiscount) params.student_discount = true;
-      if (selectedTypeParam) params.type = selectedTypeParam;
+      if (effectiveAvailableOnly) params.status = "AVAILABLE";
+      if (effectiveFemaleOnly) params.female_only = true;
+      if (effectiveStudentDiscount) params.student_discount = true;
+      if (effectiveRoommatesOnly) params.roommates_allowed = true;
       const data = await listListings(params);
+      const filtered = data.filter((l: any) => {
+        if (effectivePriceRange[0] != null && Number(l.price) < effectivePriceRange[0]) return false;
+        if (effectivePriceRange[1] != null && Number(l.price) > effectivePriceRange[1]) return false;
+        if (effectiveSelectedTypes.length > 0 && !effectiveSelectedTypes.includes(l.type)) return false;
+        return true;
+      });
       setItems(
-        data.map((l: any) => ({
+        filtered.map((l: any) => ({
           id: String(l.id),
           image:
             "https://images.unsplash.com/photo-1515263487990-61b07816b324?auto=format&fit=crop&w=1080&q=60",
           price: Number(l.price),
           title: l.title,
           location: l.district || "",
-          distance: "",
           verified: true,
           femaleOnly: !!l.female_only,
+          roommatesAllowed: !!l.roommates_allowed,
           studentDiscount: !!l.student_discount,
         }))
       );
@@ -179,8 +199,18 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
     setTypeApartment(false);
     setFemaleOnly(false);
     setStudentDiscount(false);
+    setAvailableOnly(false);
+    setRoommatesOnly(false);
     setPriceRange([0, 5000]);
-    await applyFilters();
+    // Ensure filters apply using the reset values immediately (no second click needed)
+    await applyFilters({
+      priceRange: [0, 5000],
+      selectedTypes: [],
+      femaleOnly: false,
+      studentDiscount: false,
+      availableOnly: false,
+      roommatesOnly: false,
+    });
   }
 
   return (
@@ -222,9 +252,9 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
                       </label>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Checkbox id="shared" checked={typeShared} onCheckedChange={(v) => setTypeShared(!!v)} />
-                      <label htmlFor="shared" className="text-sm cursor-pointer">
-                        Shared Room
+                      <Checkbox id="other" checked={typeShared} onCheckedChange={(v) => setTypeShared(!!v)} />
+                      <label htmlFor="other" className="text-sm cursor-pointer">
+                        Other
                       </label>
                     </div>
                     <div className="flex items-center gap-2">
@@ -241,9 +271,9 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
                   <Label className="mb-3 block">Features</Label>
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
-                      <Checkbox id="verified" defaultChecked />
-                      <label htmlFor="verified" className="text-sm cursor-pointer">
-                        Verified Only
+                      <Checkbox id="available-only" checked={availableOnly} onCheckedChange={(v) => setAvailableOnly(!!v)} />
+                      <label htmlFor="available-only" className="text-sm cursor-pointer">
+                        Available Only
                       </label>
                     </div>
                     <div className="flex items-center gap-2">
@@ -259,38 +289,15 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
                       </label>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Checkbox id="furnished" />
-                      <label htmlFor="furnished" className="text-sm cursor-pointer">
-                        Furnished
+                      <Checkbox id="roommates" checked={roommatesOnly} onCheckedChange={(v) => setRoommatesOnly(!!v)} />
+                      <label htmlFor="roommates" className="text-sm cursor-pointer">
+                        Roommates Allowed
                       </label>
                     </div>
                   </div>
                 </div>
 
-                {/* Distance */}
-                <div className="mb-6">
-                  <Label className="mb-3 block">Distance from Campus</Label>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Checkbox id="1km" />
-                      <label htmlFor="1km" className="text-sm cursor-pointer">
-                        Within 1 km
-                      </label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Checkbox id="3km" />
-                      <label htmlFor="3km" className="text-sm cursor-pointer">
-                        Within 3 km
-                      </label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Checkbox id="5km" />
-                      <label htmlFor="5km" className="text-sm cursor-pointer">
-                        Within 5 km
-                      </label>
-                    </div>
-                  </div>
-                </div>
+                {/* Distance filter removed as requested */}
 
                 <div className="space-y-3">
                   <Button onClick={applyFilters} className="w-full bg-green-600 hover:bg-green-700">

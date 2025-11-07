@@ -10,9 +10,9 @@ interface PropertyCardProps {
   price: number;
   title: string;
   location: string;
-  distance: string;
   verified?: boolean;
   femaleOnly?: boolean;
+  roommatesAllowed?: boolean;
   studentDiscount?: boolean;
   onClick?: () => void;
 }
@@ -22,9 +22,9 @@ export function PropertyCard({
   price,
   title,
   location,
-  distance,
   verified,
   femaleOnly,
+  roommatesAllowed,
   studentDiscount,
   onClick,
 }: PropertyCardProps) {
@@ -39,7 +39,7 @@ export function PropertyCard({
           alt={title}
           className="w-full h-full object-cover"
         />
-        <button className="absolute top-3 right-3 bg-white rounded-full p-2 hover:bg-secondary transition-colors">
+        <button className="absolute top-3 right-3 bg-card rounded-full p-2 hover:bg-secondary transition-colors">
           <Heart className="w-4 h-4 text-foreground" />
         </button>
         <div className="absolute bottom-3 left-3 flex gap-2 flex-wrap">
@@ -49,6 +49,11 @@ export function PropertyCard({
           {femaleOnly && (
             <Badge className="bg-purple-600 hover:bg-purple-700">
               Female Only
+            </Badge>
+          )}
+          {roommatesAllowed && (
+            <Badge className="bg-orange-600 hover:bg-orange-700">
+              Roommates Allowed
             </Badge>
           )}
           {studentDiscount && (
@@ -72,7 +77,7 @@ export function PropertyCard({
           <span>{location}</span>
         </div>
 
-        <p className="text-sm text-muted-foreground">{distance} from campus</p>
+        {/* Distance from campus removed as requested */}
       </CardContent>
     </Card>
   );

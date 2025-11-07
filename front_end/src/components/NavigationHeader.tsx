@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
-import { User as UserIcon, Menu } from "lucide-react";
+import { User as UserIcon, Menu, Moon, Sun } from "lucide-react";
 import type { User as AppUser } from "../services/auth";
 
 interface NavigationHeaderProps {
@@ -18,8 +18,23 @@ export function NavigationHeader({
   userType,
   user,
 }: NavigationHeaderProps) {
+  const [isDark, setIsDark] = useState<boolean>(() => {
+    try {
+      return (localStorage.getItem("theme") ?? "light") === "dark";
+    } catch (_) {
+      return document.documentElement.classList.contains("dark");
+    }
+  });
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", isDark);
+    try {
+      localStorage.setItem("theme", isDark ? "dark" : "light");
+    } catch (_) {}
+  }, [isDark]);
+
   return (
-    <header className="bg-white border-b border-border sticky top-0 z-50 shadow-sm">
+    <header className="bg-card border-b border-border sticky top-0 z-50 shadow-sm">
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
         <div className="flex items-center gap-8">
           <button
@@ -59,6 +74,15 @@ export function NavigationHeader({
         </div>
 
         <div className="flex items-center gap-3 relative">
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+            onClick={() => setIsDark((prev) => !prev)}
+            className="rounded-md"
+          >
+            {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          </Button>
           {!isLoggedIn ? (
             <>
               <Button

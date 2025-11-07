@@ -67,6 +67,11 @@ class Listing(models.Model):
         help_text="Select the district/neighborhood"
     )
 
+    # Optional property details
+    bedrooms = models.PositiveIntegerField(null=True, blank=True)
+    bathrooms = models.PositiveIntegerField(null=True, blank=True)
+    area = models.PositiveIntegerField(null=True, blank=True, help_text="Area in square meters")
+
     location_link = models.URLField(max_length=2048)
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)

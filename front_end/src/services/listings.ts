@@ -1,8 +1,10 @@
 import { api } from "./api";
+import type { User } from "./auth";
 
 export type Listing = {
   id: number;
   owner: number;
+  owner_details?: User;
   id_type: string;
   owner_identification_id: string;
   deed_number: string;
@@ -15,6 +17,9 @@ export type Listing = {
   student_discount: boolean;
   status: "AVAILABLE" | "RESERVED" | "DRAFT";
   district: string;
+  bedrooms?: number | null;
+  bathrooms?: number | null;
+  area?: number | null;
   location_link: string;
   created_at: string;
   modified_at: string;
@@ -40,6 +45,17 @@ export async function create(payload: Partial<Listing>) {
   return data as Listing;
 }
 
+// Update an existing listing (partial fields allowed)
+export async function update(id: string | number, payload: Partial<Listing>) {
+  const { data } = await api.patch(`/listings/${id}/`, payload);
+  return data as Listing;
+}
+
+// Delete an existing listing
+export async function remove(id: string | number) {
+  await api.delete(`/listings/${id}/`);
+}
+
 export async function changeStatus(id: string | number, status: Listing["status"]) {
   const { data } = await api.post(`/listings/${id}/change-status/`, { status });
   return data as Listing;
@@ -54,5 +70,11 @@ export async function dashboard() {
 export async function districtChoices() {
   const { data } = await api.get("/listings/districts/");
   return data as string[];
+}
+
+// Fetch district options as value/label pairs for dropdowns
+export async function districtOptions() {
+  const { data } = await api.get("/listings/district-options/");
+  return data as { value: string; label: string }[];
 }
 

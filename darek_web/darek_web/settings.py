@@ -108,7 +108,10 @@ FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://127.0.0.1:5173')
 # Base URL for email verification links (backend port 8000)
 VERIFICATION_BASE_URL = 'http://127.0.0.1:8000'
 
-# CORS configuration to allow the Vite dev server
+# CORS configuration (development-friendly)
+# In DEBUG, allow all origins so Vite can auto-pick ports (e.g., 3002).
+# In non-debug, restrict to explicit origins.
+CORS_ALLOW_ALL_ORIGINS = DEBUG
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
@@ -116,6 +119,9 @@ CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:3000',
     'http://localhost:3001',
     'http://127.0.0.1:3001',
+    # Add common fallback ports used by dev servers
+    'http://localhost:3002',
+    'http://127.0.0.1:3002',
 ]
 CORS_ALLOW_CREDENTIALS = True
 # Ensure common headers are allowed for preflight

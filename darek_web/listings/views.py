@@ -98,6 +98,21 @@ class ListingViewSet(ModelViewSet):
         valid_statuses = [choice[0] for choice in Listing.Status.choices]
         if new_status not in valid_statuses:
             raise serializers.ValidationError(f"Status must be one of {valid_statuses}.")
+        # Enforce verification/draft rules:
+        # - If ID & deed are zeros (unverified), only DRAFT is allowed
+        # - If verified (non-zeros), only AVAILABLE or RESERVED are allowed
+        is_unverified = (
+            listing.owner_identification_id == '0000000000' or listing.deed_number == '0000000000'
+        )
+        if is_unverified and new_status != Listing.Status.DRAFT:
+            raise serializers.ValidationError(
+                "Unverified listings must remain DRAFT until a valid deed and ID are provided."
+            )
+        if not is_unverified and new_status not in (Listing.Status.AVAILABLE, Listing.Status.RESERVED):
+            raise serializers.ValidationError(
+                "Verified listings can only be set to AVAILABLE or RESERVED."
+            )
+
         listing.status = new_status
         listing.save()
         serializer = self.get_serializer(listing)
@@ -118,6 +133,13 @@ class ListingViewSet(ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='districts')
     def districts(self, request):
-        # Return the sorted display labels for districts
-        labels = [label for value, label in DISTRICT_CHOICES]
+        # Return the sorted display labels for districts (legacy for simple UIs)
+        labels = sorted([label for value, label in DISTRICT_CHOICES], key=lambda s: s.lower())
         return Response(labels)
+
+    @action(detail=False, methods=['get'], url_path='district-options')
+    def district_options(self, request):
+        """Return district choices as value/label pairs for forms."""
+        options = [{"value": value, "label": label} for value, label in DISTRICT_CHOICES]
+        options = sorted(options, key=lambda o: o["label"].lower())
+        return Response(options)

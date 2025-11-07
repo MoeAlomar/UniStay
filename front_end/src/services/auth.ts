@@ -24,7 +24,7 @@ export async function register(payload: {
   last_name: string;
   email: string;
   password: string;
-  role: "student" | "landlord";
+  role: "student" | "landlord" | "other";
   gender: string;
   phone: string;
 }) {

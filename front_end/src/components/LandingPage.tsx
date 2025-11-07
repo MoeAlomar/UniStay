@@ -55,7 +55,7 @@ export function LandingPage({ onNavigate, isLoggedIn, userType }: LandingPagePro
       </div>
 
       {/* About Section */}
-      <div className="bg-white py-16 px-4">
+      <div className="bg-background py-16 px-4">
         <div className="container mx-auto max-w-6xl">
           <h2 className="text-center mb-12 text-foreground">About UniStay KSA</h2>
           <div className="grid md:grid-cols-3 gap-8">
@@ -82,7 +82,7 @@ export function LandingPage({ onNavigate, isLoggedIn, userType }: LandingPagePro
       </div>
 
       {/* Features Section */}
-      <div className="bg-white py-16 px-4">
+      <div className="bg-background py-16 px-4">
         <div className="container mx-auto max-w-6xl">
           <h2 className="text-center mb-12 text-foreground">
             Why Choose UniStay KSA?
@@ -120,7 +120,7 @@ export function LandingPage({ onNavigate, isLoggedIn, userType }: LandingPagePro
       </div>
 
       {/* FAQ Section */}
-      <div className="bg-white py-16 px-4">
+      <div className="bg-background py-16 px-4">
         <div className="container mx-auto max-w-4xl">
           <h2 className="text-center mb-8 text-foreground">Frequently Asked Questions</h2>
           <div className="space-y-4">
