@@ -18,7 +18,7 @@ import cloudinary.api
 import os
 from corsheaders.defaults import default_headers
 from pathlib import Path
-import dj_database_url  # For parsing DATABASE_URL in prod
+ # import dj_database_url  # For parsing DATABASE_URL in prod
 
 # Build paths inside the project
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -161,32 +161,13 @@ WSGI_APPLICATION = "darek_web.wsgi.application"
 # ==============================
 # Database
 # ==============================
-_db_url = os.environ.get("DATABASE_URL")
-if _db_url:
-    DATABASES = {
-        "default": dj_database_url.config(default=_db_url, conn_max_age=600),
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
-else:
-    _db_name = os.environ.get("DB_NAME")
-    _db_user = os.environ.get("DB_USER")
-    _db_password = os.environ.get("DB_PASSWORD")
-    _db_host = os.environ.get("DB_HOST", "127.0.0.1")
-    _db_port = os.environ.get("DB_PORT", "5432")
-    if _db_name and _db_user:
-        DATABASES = {
-            "default": {
-                "ENGINE": "django.db.backends.postgresql",
-                "NAME": _db_name,
-                "USER": _db_user,
-                "PASSWORD": _db_password,
-                "HOST": _db_host,
-                "PORT": _db_port,
-            }
-        }
-    else:
-        raise RuntimeError(
-            "Database configuration missing. Set DATABASE_URL or DB_* env vars."
-        )
+}
 
 # ==============================
 # Password Validation

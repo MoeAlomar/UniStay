@@ -53,51 +53,46 @@ class CreateConversationView(APIView):
 
     def post(self, request):
         user = request.user
-        other_user_id = request.data.get('other_user_id')  # Frontend sends the target user's ID
+        other_user_id = request.data.get('other_user_id')
         try:
             other_user = User.objects.get(id=other_user_id)
         except User.DoesNotExist:
             return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        # Enforce permissions (customize as needed, e.g., only allow if related to a listing or roommate)
-        # Example:
-        # if user.role == 'student' and other_user.role != 'landlord':
-        #     return Response({'error': 'You can only message landlords'}, status=status.HTTP_403_FORBIDDEN)
-
         client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
         identity1 = str(user.id)
         identity2 = str(other_user.id)
 
-        # Check if a conversation already exists between these users (optional, to avoid duplicates)
         existing_convo = Conversation.objects.filter(participants=user).filter(participants=other_user).first()
         if existing_convo:
             return Response({'conversation_sid': existing_convo.twilio_sid}, status=status.HTTP_200_OK)
 
-        # Create conversation in Twilio
         try:
+            # 1) Create conversation on Twilio
             conversation = client.conversations.services(
                 settings.TWILIO_CONVERSATIONS_SERVICE_SID
             ).conversations.create(
                 friendly_name=f"Chat between {user.username} and {other_user.username}"
             )
 
-            # Add participants
-            client.conversations.services(
-                settings.TWILIO_CONVERSATIONS_SERVICE_SID
-            ).conversations(
-                conversation.sid
-            ).participants.create(identity=identity1)
+            # 2) Add participants by identity (must match token identity on frontend)
+            svc = client.conversations.services(settings.TWILIO_CONVERSATIONS_SERVICE_SID)
+            svc.conversations(conversation.sid).participants.create(identity=identity1)
+            svc.conversations(conversation.sid).participants.create(identity=identity2)
 
-            client.conversations.services(
-                settings.TWILIO_CONVERSATIONS_SERVICE_SID
-            ).conversations(
-                conversation.sid
-            ).participants.create(identity=identity2)
+            # 3) Add attributes we’ll use for UI (names keyed by ID)
+            attrs = {
+                "usernames": {
+                    identity1: user.get_full_name() or user.username,
+                    identity2: other_user.get_full_name() or other_user.username,
+                }
+            }
+            svc.conversations(conversation.sid).update(attributes=json.dumps(attrs))
 
-            # Optionally save to your DB for tracking
+            # 4) Mirror to Django
             db_convo = Conversation.objects.create(
                 twilio_sid=conversation.sid,
-                listing=request.data.get('listing')  # If linking to a listing
+                listing=request.data.get('listing')  # optional
             )
             db_convo.participants.add(user, other_user)
             db_convo.save()
