@@ -1,4 +1,6 @@
 # messaging/views.py
+import json
+from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -54,33 +56,46 @@ class CreateConversationView(APIView):
     def post(self, request):
         user = request.user
         other_user_id = request.data.get('other_user_id')
+        other_username = request.data.get('other_username')
+
+        # Resolve target user by username first, then id
         try:
-            other_user = User.objects.get(id=other_user_id)
-        except User.DoesNotExist:
+            if other_username:
+                other_user = get_object_or_404(User, username=other_username)
+            elif other_user_id:
+                other_user = get_object_or_404(User, id=other_user_id)
+            else:
+                return Response({'error': 'Provide other_username or other_user_id'},
+                                status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
             return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
 
+        if other_user.id == user.id:
+            return Response({'error': 'Cannot create a conversation with yourself'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
         client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
-        identity1 = str(user.id)
+        identity1 = str(user.id)         # <-- keep Twilio identity = user.id (string)
         identity2 = str(other_user.id)
 
-        existing_convo = Conversation.objects.filter(participants=user).filter(participants=other_user).first()
-        if existing_convo:
+        existing_convo = (Conversation.objects
+                          .filter(participants=user)
+                          .filter(participants=other_user)
+                          .first())
+        if existing_convo and existing_convo.twilio_sid:
             return Response({'conversation_sid': existing_convo.twilio_sid}, status=status.HTTP_200_OK)
 
         try:
-            # 1) Create conversation on Twilio
             conversation = client.conversations.services(
                 settings.TWILIO_CONVERSATIONS_SERVICE_SID
             ).conversations.create(
                 friendly_name=f"Chat between {user.username} and {other_user.username}"
             )
 
-            # 2) Add participants by identity (must match token identity on frontend)
             svc = client.conversations.services(settings.TWILIO_CONVERSATIONS_SERVICE_SID)
             svc.conversations(conversation.sid).participants.create(identity=identity1)
             svc.conversations(conversation.sid).participants.create(identity=identity2)
 
-            # 3) Add attributes we’ll use for UI (names keyed by ID)
             attrs = {
                 "usernames": {
                     identity1: user.get_full_name() or user.username,
@@ -89,19 +104,15 @@ class CreateConversationView(APIView):
             }
             svc.conversations(conversation.sid).update(attributes=json.dumps(attrs))
 
-            # 4) Mirror to Django
             db_convo = Conversation.objects.create(
                 twilio_sid=conversation.sid,
-                listing=request.data.get('listing')  # optional
+                listing=request.data.get('listing')
             )
             db_convo.participants.add(user, other_user)
-            db_convo.save()
 
             return Response({'conversation_sid': conversation.sid}, status=status.HTTP_201_CREATED)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-# Add to messaging/views.py (append this class)
 class SendMessageView(APIView):
     permission_classes = [IsAuthenticated]
 

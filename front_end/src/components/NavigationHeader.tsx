@@ -42,11 +42,9 @@ export function NavigationHeader({
       const idx = src.indexOf(marker);
       const before = src.slice(0, idx + marker.length);
       const after = src.slice(idx + marker.length);
-      const hasTransforms = after[0] !== 'v' && after.includes('/');
+      const hasTransforms = after[0] !== "v" && after.includes("/");
       const transform = "c_fill,w_32,h_32,dpr_auto";
-      if (hasTransforms) {
-        return `${before}f_auto,q_auto,${transform},${after}`;
-      }
+      if (hasTransforms) return `${before}f_auto,q_auto,${transform},${after}`;
       return `${before}f_auto,q_auto,${transform}/${after}`;
     } catch {
       return src;
@@ -57,10 +55,7 @@ export function NavigationHeader({
     <header className="bg-card border-b border-border sticky top-0 z-50 shadow-sm">
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
         <div className="flex items-center gap-8">
-          <button
-            onClick={() => onNavigate("landing")}
-            className="flex items-center gap-2"
-          >
+          <button onClick={() => onNavigate("landing")} className="flex items-center gap-2">
             <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
               <span className="text-white">DR</span>
             </div>
@@ -86,19 +81,24 @@ export function NavigationHeader({
             >
               Listings
             </button>
-            {isLoggedIn && user && user.role !== "landlord" && (
+
+            {/* NEW: Messages tab when logged in */}
+            {isLoggedIn && (
               <button
-                onClick={() => onNavigate("roommate")}
+                onClick={() => onNavigate("messages")}
                 className="text-foreground hover:text-primary transition-colors"
               >
+                Messages
+              </button>
+            )}
+
+            {isLoggedIn && user && user.role !== "landlord" && (
+              <button onClick={() => onNavigate("roommate")} className="text-foreground hover:text-primary transition-colors">
                 Roommates
               </button>
             )}
             {isLoggedIn && userType === "landlord" && (
-              <button
-                onClick={() => onNavigate("dashboard")}
-                className="text-foreground hover:text-primary transition-colors"
-              >
+              <button onClick={() => onNavigate("dashboard")} className="text-foreground hover:text-primary transition-colors">
                 Dashboard
               </button>
             )}
@@ -115,13 +115,10 @@ export function NavigationHeader({
           >
             {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
           </Button>
+
           {!isLoggedIn ? (
             <>
-              <Button
-                variant="ghost"
-                onClick={() => onNavigate("login")}
-                className="text-foreground"
-              >
+              <Button variant="ghost" onClick={() => onNavigate("login")} className="text-foreground">
                 Login
               </Button>
               <Button onClick={() => onNavigate("register")}>Register</Button>
@@ -141,7 +138,9 @@ export function NavigationHeader({
                 {user?.avatar_url ? (
                   <AvatarImage
                     src={transformAvatar(user.avatar_url)}
-                    alt={user?.first_name ? `${user.first_name} ${user.last_name || ""}`.trim() : user?.username || "User"}
+                    alt={
+                      user?.first_name ? `${user.first_name} ${user.last_name || ""}`.trim() : user?.username || "User"
+                    }
                     loading="eager"
                     decoding="async"
                   />
@@ -157,6 +156,7 @@ export function NavigationHeader({
               </Avatar>
             </button>
           )}
+
           <Button variant="ghost" size="icon" className="md:hidden">
             <Menu className="w-5 h-5" />
           </Button>

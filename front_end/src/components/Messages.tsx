@@ -1,12 +1,11 @@
-// frontend/src/components/Messages.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "./ui/card";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { ScrollArea } from "./ui/scroll-area";
-import { Send, Search } from "lucide-react";
-
+import { Send, Search, Plus } from "lucide-react";
+import { openOrCreateByUsername } from "../services/messaging";
 import {
   getTwilioClient,
   listSubscribedConversations,
@@ -14,13 +13,14 @@ import {
   getMessages,
   sendMessage as sendViaAPI,
   markAllRead,
+  openOrCreateByUserId,
   type Conversation,
   type Message,
 } from "../services/messaging";
 
 type UIConversation = {
-  id: string;              // Twilio Conversation SID
-  name: string;            // other participant's display name
+  id: string;
+  name: string;
   listingTitle?: string;
   lastMessage: string;
   timestamp: string;
@@ -28,15 +28,8 @@ type UIConversation = {
   avatar: string;
 };
 
-// Accepts string | null | undefined for fallback
-function otherParticipantName(
-  attrs: any,
-  myId?: string,
-  fallback?: string | null
-): string {
+function otherParticipantName(attrs: any, myId?: string, fallback?: string | null): string {
   const safeFallback = (fallback ?? undefined) as string | undefined;
-
-  // attrs.usernames = { "<id1>": "Alice", "<id2>": "Bob" }
   if (attrs?.usernames && myId) {
     const keys: string[] = Object.keys(attrs.usernames);
     const otherId = keys.find((k) => k !== myId);
@@ -56,9 +49,14 @@ export function Messages() {
   const [messageText, setMessageText] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [myIdentity, setMyIdentity] = useState<string | undefined>(undefined);
+  const [newUserId, setNewUserId] = useState<string>(""); // NEW
+  const [newUsername, setNewUsername] = useState<string>("");   // <- username instead of id
+  const [creating, setCreating] = useState<boolean>(false);
+  const [createErr, setCreateErr] = useState<string>("");       // show backend errors
+  
+  
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-  // Read ?conversation=<sid> once
   const initialSidFromURL = (() => {
     try {
       const params = new URLSearchParams(window.location.search);
@@ -68,15 +66,12 @@ export function Messages() {
     }
   })();
 
-  // Auto-scroll on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Init client + load conversations
   useEffect(() => {
     let mounted = true;
-
     (async () => {
       const client = await getTwilioClient();
       if (!mounted) return;
@@ -102,8 +97,6 @@ export function Messages() {
           } catch {}
 
           const attrs = (await c.getAttributes()) as any;
-
-          // FIX: pass (c.friendlyName ?? undefined) OR let helper accept null
           const name = otherParticipantName(attrs, client.user?.identity, c.friendlyName);
 
           const initials = name
@@ -121,38 +114,31 @@ export function Messages() {
             timestamp: ts,
             unread,
             avatar: initials || "UN",
-          } as UIConversation;
+          };
         })
       );
 
       setConvList(uiConvs);
 
-      // Respect URL param
       if (initialSidFromURL) {
         setSelectedSid(initialSidFromURL);
       } else if (!selectedSid && uiConvs[0]) {
         setSelectedSid(uiConvs[0].id);
       }
 
-      // Conversation added/removed listeners
       client.on("conversationAdded", async (c) => {
         const summary = await c.getMessages(1);
         const last = summary.items[summary.items.length - 1];
         const ts = last?.dateCreated
           ? last.dateCreated.toLocaleString([], { hour: "2-digit", minute: "2-digit" })
           : "";
-
         let unread = false;
         try {
           const count = await c.getUnreadMessagesCount();
           unread = (count ?? 0) > 0;
         } catch {}
-
         const attrs = (await c.getAttributes()) as any;
-
-        // FIX here too
         const name = otherParticipantName(attrs, client.user?.identity, c.friendlyName);
-
         const initials = name
           .split(" ")
           .map((s: string) => s[0])
@@ -183,18 +169,15 @@ export function Messages() {
         }
       });
     })();
-
     return () => {
       mounted = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // once
+  }, []);
 
-  // Subscribe to the selected conversation
   useEffect(() => {
     let unsubscribe: (() => void) | null = null;
     let mounted = true;
-
     (async () => {
       if (!selectedSid) return;
 
@@ -202,23 +185,16 @@ export function Messages() {
       if (!mounted) return;
 
       setSelectedConversation(convo);
-
-      // Load history
       const items = await getMessages(convo, 100);
       if (!mounted) return;
       setMessages(items);
-
-      // Mark read on open
       await markAllRead(convo);
 
       const onMsgAdded = async (m: Message) => {
         setMessages((prev) => [...prev, m]);
-
-        // Auto-mark read if it's from the other user
         const client = await getTwilioClient();
         const me = client.user?.identity;
-        const isFromOther = me && m.author !== me;
-        if (isFromOther) {
+        if (me && m.author !== me) {
           clearTimeout((onMsgAdded as any)._t);
           (onMsgAdded as any)._t = setTimeout(() => markAllRead(convo), 150);
         }
@@ -230,13 +206,11 @@ export function Messages() {
         const ts = last?.dateCreated
           ? last.dateCreated.toLocaleString([], { hour: "2-digit", minute: "2-digit" })
           : "";
-
         let unread = false;
         try {
           const count = await convo.getUnreadMessagesCount();
           unread = (count ?? 0) > 0;
         } catch {}
-
         setConvList((prev) =>
           prev.map((c) =>
             c.id === convo.sid
@@ -253,26 +227,21 @@ export function Messages() {
 
       convo.on("messageAdded", onMsgAdded);
       convo.on("updated", onUpdated);
-
       unsubscribe = () => {
         convo.removeListener("messageAdded", onMsgAdded);
         convo.removeListener("updated", onUpdated);
       };
     })();
-
     return () => {
       mounted = false;
       if (unsubscribe) unsubscribe();
     };
   }, [selectedSid]);
 
-  // Re-mark read when tab becomes visible
   useEffect(() => {
     if (!selectedConversation) return;
     const onVisible = async () => {
-      if (document.visibilityState === "visible") {
-        await markAllRead(selectedConversation);
-      }
+      if (document.visibilityState === "visible") await markAllRead(selectedConversation);
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
@@ -293,9 +262,7 @@ export function Messages() {
     const text = messageText.trim();
     if (!text || !selectedSid) return;
     setMessageText("");
-
     try {
-      // send via backend (persists in Django) – Twilio emits messageAdded for UI
       await sendViaAPI(selectedSid, text);
       if (selectedConversation) await markAllRead(selectedConversation);
     } catch {
@@ -306,14 +273,11 @@ export function Messages() {
   };
 
   const renderTime = (m: Message) =>
-    m.dateCreated
-      ? m.dateCreated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-      : "";
+    m.dateCreated ? m.dateCreated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
 
   const isOwn = (m: Message) => {
     if (!myIdentity) return false;
     return m.author === myIdentity;
-    // NOTE: author is the Twilio identity (we set it to user.id on the server)
   };
 
   const handleSelectConversation = async (sid: string) => {
@@ -321,7 +285,6 @@ export function Messages() {
     const convo = await getConversationBySid(sid);
     await markAllRead(convo);
     setConvList((prev) => prev.map((c) => (c.id === sid ? { ...c, unread: false } : c)));
-    // keep URL synced
     try {
       const u = new URL(window.location.href);
       u.searchParams.set("conversation", sid);
@@ -329,6 +292,30 @@ export function Messages() {
     } catch {}
   };
 
+  // NEW: start a chat by username
+  const startChat = async () => {
+  const uname = newUsername.trim();
+  if (!uname) return;
+  setCreating(true);
+  setCreateErr("");
+  try {
+    const sid = await openOrCreateByUsername(uname);
+    setSelectedSid(sid);
+    // reflect in URL
+    try {
+      const u = new URL(window.location.href);
+      u.searchParams.set("conversation", sid);
+      window.history.replaceState(null, "", u.toString());
+    } catch {}
+    setNewUsername("");
+  } catch (e: any) {
+    // surface the message from backend if present
+    const msg = e?.response?.data?.error || "Failed to start conversation";
+    setCreateErr(msg);
+  } finally {
+    setCreating(false);
+  }
+};
   const activeUIConv = convList.find((c) => c.id === selectedSid);
 
   return (
@@ -337,9 +324,9 @@ export function Messages() {
         <h1 className="mb-6 text-foreground">Messages</h1>
         <Card className="overflow-hidden">
           <div className="grid md:grid-cols-3 h-[calc(100vh-200px)]">
-            {/* Left column: conversations */}
+            {/* Left: conversations + Start new chat */}
             <div className="border-r border-border bg-card">
-              <div className="p-4 border-b border-border">
+              <div className="p-4 border-b border-border space-y-3">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
@@ -349,8 +336,28 @@ export function Messages() {
                     className="pl-10"
                   />
                 </div>
+
+                {/* NEW: Start new chat by user id */}
+                <div className="flex flex-col gap-2">
+  <div className="flex gap-2">
+    <Input
+      placeholder="Other user's username…"
+      value={newUsername}
+      onChange={(e) => setNewUsername(e.target.value)}
+    />
+    <Button onClick={startChat} disabled={!newUsername.trim() || creating}>
+      <Plus className="w-4 h-4 mr-1" />
+      Start
+    </Button>
+  </div>
+  {createErr ? (
+    <p className="text-xs text-red-600">{createErr}</p>
+  ) : null}
+</div>
+
               </div>
-              <ScrollArea className="h-[calc(100vh-280px)]">
+
+              <ScrollArea className="h-[calc(100vh-320px)]">
                 <div className="divide-y divide-border">
                   {filteredConversations.map((conversation) => (
                     <button
@@ -367,26 +374,16 @@ export function Messages() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-1">
                             <span>{conversation.name}</span>
-                            <span className="text-xs text-muted-foreground">
-                              {conversation.timestamp}
-                            </span>
+                            <span className="text-xs text-muted-foreground">{conversation.timestamp}</span>
                           </div>
                           {conversation.listingTitle && (
-                            <p className="text-xs text-primary mb-1">
-                              {conversation.listingTitle}
-                            </p>
+                            <p className="text-xs text-primary mb-1">{conversation.listingTitle}</p>
                           )}
-                          <p
-                            className={`text-sm truncate ${
-                              conversation.unread ? "text-foreground" : "text-muted-foreground"
-                            }`}
-                          >
+                          <p className={`text-sm truncate ${conversation.unread ? "text-foreground" : "text-muted-foreground"}`}>
                             {conversation.lastMessage || "No messages yet"}
                           </p>
                         </div>
-                        {conversation.unread && (
-                          <div className="w-2 h-2 bg-primary rounded-full mt-2" />
-                        )}
+                        {conversation.unread && <div className="w-2 h-2 bg-primary rounded-full mt-2" />}
                       </div>
                     </button>
                   ))}
@@ -394,49 +391,29 @@ export function Messages() {
               </ScrollArea>
             </div>
 
-            {/* Right column: chat */}
+            {/* Right: chat */}
             <div className="md:col-span-2 flex flex-col bg-secondary">
-              {/* Header */}
               <div className="p-4 bg-card border-b border-border">
                 <div className="flex items-center gap-3">
                   <Avatar>
-                    <AvatarFallback>
-                      {(activeUIConv?.avatar || "UN").slice(0, 2)}
-                    </AvatarFallback>
+                    <AvatarFallback>{(activeUIConv?.avatar || "UN").slice(0, 2)}</AvatarFallback>
                   </Avatar>
                   <div>
-                    <h3 className="text-foreground">
-                      {activeUIConv?.name || "Select a conversation"}
-                    </h3>
-                    {activeUIConv?.listingTitle && (
-                      <p className="text-sm text-primary">{activeUIConv.listingTitle}</p>
-                    )}
+                    <h3 className="text-foreground">{activeUIConv?.name || "Select a conversation"}</h3>
+                    {activeUIConv?.listingTitle && <p className="text-sm text-primary">{activeUIConv.listingTitle}</p>}
                   </div>
                 </div>
               </div>
 
-              {/* Messages */}
               <ScrollArea className="flex-1 p-4">
                 <div className="space-y-4">
                   {messages.map((m) => (
                     <div key={m.sid} className={`flex ${isOwn(m) ? "justify-end" : "justify-start"}`}>
                       <div className={`max-w-[70%] ${isOwn(m) ? "order-2" : "order-1"}`}>
-                        <div
-                          className={`rounded-2xl px-4 py-2 ${
-                            isOwn(m)
-                              ? "bg-primary text-white rounded-tr-sm"
-                              : "bg-card rounded-tl-sm"
-                          }`}
-                        >
-                          <p className="text-sm whitespace-pre-wrap break-words">
-                            {m.body}
-                          </p>
+                        <div className={`rounded-2xl px-4 py-2 ${isOwn(m) ? "bg-primary text-white rounded-tr-sm" : "bg-card rounded-tl-sm"}`}>
+                          <p className="text-sm whitespace-pre-wrap break-words">{m.body}</p>
                         </div>
-                        <p
-                          className={`text-xs text-muted-foreground mt-1 ${
-                            isOwn(m) ? "text-right" : "text-left"
-                          }`}
-                        >
+                        <p className={`text-xs text-muted-foreground mt-1 ${isOwn(m) ? "text-right" : "text-left"}`}>
                           {renderTime(m)}
                         </p>
                       </div>
@@ -446,15 +423,10 @@ export function Messages() {
                 </div>
               </ScrollArea>
 
-              {/* Composer */}
               <div className="p-4 bg-card border-t border-border">
                 <div className="flex gap-2">
                   <Input
-                    placeholder={
-                      selectedSid
-                        ? "Type a message..."
-                        : "Select a conversation to start chatting"
-                    }
+                    placeholder={selectedSid ? "Type a message..." : "Select a conversation to start chatting"}
                     value={messageText}
                     onChange={(e) => setMessageText(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
