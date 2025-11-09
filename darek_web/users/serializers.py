@@ -52,6 +52,8 @@ class RegisterSerializer(serializers.ModelSerializer):
             "role",
             "gender",
             "phone",
+            "avatar_url",
+            "avatar",
             "is_email_verified",
         )
         read_only_fields = ("id", "is_email_verified",)
@@ -103,6 +105,8 @@ class UserSerializer(serializers.ModelSerializer):
             "role",
             "gender",
             "phone",
+            "avatar_url",
+            "avatar",
             "is_email_verified",
             "last_login",  # The original UTC time from the database
             "local_last_login",  # Computed local time (e.g., Asia/Riyadh)

@@ -3,12 +3,20 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework import serializers
+from rest_framework import serializers, parsers, status
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q
-from .models import Listing
-from .serializers import ListingSerializer
+from .models import Listing, ListingImage
+from .serializers import ListingSerializer, ListingImageSerializer
 from .districts_listings import districts as DISTRICT_CHOICES
+from django.shortcuts import get_object_or_404
+from django.conf import settings
+import logging
+
+logger = logging.getLogger(__name__)
+
+MAX_IMAGES_PER_LISTING = 10
+MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
 
 class ListingViewSet(ModelViewSet):
     queryset = Listing.objects.all()
@@ -16,6 +24,7 @@ class ListingViewSet(ModelViewSet):
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['status', 'female_only', 'roommates_allowed', 'type', 'student_discount', 'district']
+    parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
 
     def get_queryset(self):
         user = self.request.user
@@ -35,8 +44,61 @@ class ListingViewSet(ModelViewSet):
                 raise PermissionDenied("Only landlords can access the dashboard.")
         return super().get_permissions()
 
-    def perform_create(self, serializer):
-        serializer.save(owner=self.request.user)
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        listing = serializer.save(owner=request.user)
+
+        # Handle multipart images: limit to MAX_IMAGES_PER_LISTING
+        files = request.FILES.getlist('images')
+        if files:
+            if len(files) > MAX_IMAGES_PER_LISTING:
+                return Response(
+                    {"detail": f"Maximum {MAX_IMAGES_PER_LISTING} images allowed per listing."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            for f in files:
+                # Basic validation: image content-type and size
+                if getattr(f, 'size', 0) > MAX_IMAGE_SIZE_BYTES:
+                    return Response({"detail": "Each image must be 5MB or less."}, status=status.HTTP_400_BAD_REQUEST)
+                content_type = getattr(f, 'content_type', '') or ''
+                if not content_type.startswith('image/'):
+                    return Response({"detail": "All files must be images."}, status=status.HTTP_400_BAD_REQUEST)
+                ListingImage.objects.create(listing=listing, image=f)
+
+        headers = self.get_success_headers(serializer.data)
+        # Return fresh listing with nested images (urls)
+        data = self.get_serializer(listing).data
+        return Response(data, status=status.HTTP_201_CREATED, headers=headers)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.get('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        listing = serializer.save()
+
+        # Append any new images provided in update
+        files = request.FILES.getlist('images')
+        if files:
+            existing_count = ListingImage.objects.filter(listing=listing).count()
+            if existing_count + len(files) > MAX_IMAGES_PER_LISTING:
+                remaining = MAX_IMAGES_PER_LISTING - existing_count
+                return Response(
+                    {"detail": f"This listing already has {existing_count} images. You can add {remaining} more."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            for f in files:
+                if getattr(f, 'size', 0) > MAX_IMAGE_SIZE_BYTES:
+                    return Response({"detail": "Each image must be 5MB or less."}, status=status.HTTP_400_BAD_REQUEST)
+                content_type = getattr(f, 'content_type', '') or ''
+                if not content_type.startswith('image/'):
+                    return Response({"detail": "All files must be images."}, status=status.HTTP_400_BAD_REQUEST)
+                ListingImage.objects.create(listing=listing, image=f)
+
+        # Return fresh listing with nested images
+        data = self.get_serializer(listing).data
+        return Response(data, status=status.HTTP_200_OK)
 
     def perform_update(self, serializer):
         if self.request.user != self.get_object().owner:
@@ -143,3 +205,96 @@ class ListingViewSet(ModelViewSet):
         options = [{"value": value, "label": label} for value, label in DISTRICT_CHOICES]
         options = sorted(options, key=lambda o: o["label"].lower())
         return Response(options)
+
+
+class ListingImageViewSet(ModelViewSet):
+    queryset = ListingImage.objects.select_related("listing").all()
+    serializer_class = ListingImageSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ["listing"]
+    parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
+
+    def get_queryset(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return ListingImage.objects.none()
+        # Landlords can see their own listing images; students can see images for AVAILABLE/RESERVED listings
+        if user.role == 'landlord':
+            return ListingImage.objects.filter(listing__owner=user)
+        return ListingImage.objects.filter(listing__status__in=[Listing.Status.AVAILABLE, Listing.Status.RESERVED])
+
+    def create(self, request, *args, **kwargs):
+        # Accept single-image create: expect 'listing' id and 'image' file
+        listing_id = request.data.get('listing')
+        if not listing_id:
+            raise serializers.ValidationError({"listing": "Listing is required"})
+        listing = get_object_or_404(Listing, pk=listing_id)
+        if request.user != listing.owner:
+            raise PermissionDenied("You can only add images to your own listings.")
+
+        existing_count = ListingImage.objects.filter(listing=listing).count()
+        if existing_count >= MAX_IMAGES_PER_LISTING:
+            raise serializers.ValidationError({"images": f"A listing can have at most {MAX_IMAGES_PER_LISTING} images."})
+
+        image_file = request.FILES.get('image')
+        if not image_file:
+            raise serializers.ValidationError({"image": "Provide an image file under 'image'"})
+        if getattr(image_file, 'size', 0) > MAX_IMAGE_SIZE_BYTES:
+            raise serializers.ValidationError({"image": "Each image must be 5MB or less."})
+        content_type = getattr(image_file, 'content_type', '') or ''
+        if not content_type.startswith('image/'):
+            raise serializers.ValidationError({"image": "File must be an image."})
+
+        ListingImage.objects.create(listing=listing, image=image_file)
+        # Return full listing with all images
+        listing_data = ListingSerializer(listing, context={'request': request}).data
+        return Response(listing_data, status=status.HTTP_201_CREATED)
+
+    def perform_destroy(self, instance):
+        # Ensure only the listing owner can delete images
+        if self.request.user != instance.listing.owner:
+            raise PermissionDenied("You can only delete images from your own listings.")
+        instance.delete()
+
+    @action(detail=False, methods=['post'], url_path='bulk-upload')
+    def bulk_upload(self, request):
+        user = request.user
+        if not user.is_authenticated:
+            raise PermissionDenied("Authentication required.")
+
+        listing_id = request.data.get('listing')
+        if not listing_id:
+            raise serializers.ValidationError({"listing": "Listing is required"})
+        listing = get_object_or_404(Listing, pk=listing_id)
+
+        if user != listing.owner:
+            raise PermissionDenied("You can only upload images to your own listings.")
+
+        files = request.FILES.getlist('images')
+        if not files:
+            raise serializers.ValidationError({"images": "Provide one or more image files under 'images'"})
+        if len(files) > MAX_IMAGES_PER_LISTING:
+            raise serializers.ValidationError({"images": f"Upload up to {MAX_IMAGES_PER_LISTING} images per request."})
+
+        existing_count = ListingImage.objects.filter(listing=listing).count()
+        if existing_count + len(files) > MAX_IMAGES_PER_LISTING:
+            remaining = MAX_IMAGES_PER_LISTING - existing_count
+            raise serializers.ValidationError(
+                {"images": f"This listing already has {existing_count} images. You can add {remaining} more."}
+            )
+
+        uploaded = []
+        for f in files:
+            if getattr(f, 'size', 0) > MAX_IMAGE_SIZE_BYTES:
+                raise serializers.ValidationError({"images": "Each image must be 5MB or less."})
+            content_type = getattr(f, 'content_type', '') or ''
+            if not content_type.startswith('image/'):
+                raise serializers.ValidationError({"images": "All files must be images."})
+            ListingImage.objects.create(listing=listing, image=f)
+            # We collect but will return full listing
+            # uploaded.append(ListingImageSerializer(img, context={'request': request}).data)
+
+        # Return fresh listing with nested image urls
+        listing_data = ListingSerializer(listing, context={'request': request}).data
+        return Response(listing_data, status=201)

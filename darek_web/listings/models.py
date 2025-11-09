@@ -84,3 +84,22 @@ class Listing(models.Model):
             ("can_create_listing", "Can create a listing"),
             ("can_view_listing_creation", "Can view listing creation"),
         ]
+
+
+class ListingImage(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    listing = models.ForeignKey(
+        Listing,
+        on_delete=models.CASCADE,
+        related_name="images",
+    )
+    # Cloudinary-backed image file (URL served via storage)
+    image = models.ImageField(upload_to="listings/")
+    is_primary = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.listing_id} - {self.id}"
+
+    class Meta:
+        ordering = ["-is_primary", "id"]

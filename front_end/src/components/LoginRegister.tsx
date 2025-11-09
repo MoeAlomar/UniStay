@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Card, CardContent } from "./ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { AlertCircle } from "lucide-react";
 
 interface LoginRegisterProps {
   onNavigate: (page: string) => void;
@@ -31,6 +32,20 @@ export function LoginRegister({
 
   const [loginErrors, setLoginErrors] = useState<Record<string, string>>({});
   const [registerErrors, setRegisterErrors] = useState<Record<string, string>>({});
+  const [gateNotice, setGateNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("register_gate_notice");
+      if (raw) {
+        const data = JSON.parse(raw);
+        const msg = typeof data?.message === "string" ? data.message : "Please register to access listings.";
+        setGateNotice(msg);
+        localStorage.removeItem("register_gate_notice");
+        setActiveTab("register");
+      }
+    } catch (_) {}
+  }, []);
 
   const parseError = (e: any) => {
     const d = e?.response?.data;
@@ -85,13 +100,13 @@ export function LoginRegister({
             <div className="relative z-10">
               <div className="flex items-center gap-2 mb-8">
                 <div className="w-12 h-12 bg-card rounded-lg flex items-center justify-center">
-                  <span className="text-primary text-xl">US</span>
+                  <span className="text-primary text-xl">DR</span>
                 </div>
-                <span className="text-2xl">UniStay KSA</span>
+                <span className="text-2xl">Darek</span>
               </div>
-              <h2 className="text-3xl mb-4">Welcome to UniStay KSA</h2>
+              <h2 className="text-3xl mb-4">Welcome to Darek</h2>
               <p className="text-white/90 mb-6">
-                The trusted platform for student housing in Saudi Arabia. Connect
+                The trusted platform for student housing. Connect
                 with verified landlords and find your perfect home near campus.
               </p>
               <ul className="space-y-3">
@@ -226,11 +241,26 @@ export function LoginRegister({
                 </TabsContent>
                 <TabsContent value="register">
                   <div className="space-y-6">
+                    {gateNotice && (
+                      <div className="rounded-md border border-primary/30 bg-primary/10 p-3 flex items-start gap-3">
+                        <AlertCircle className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                        <div className="text-sm">
+                          <div className="font-medium text-foreground">Registration Required</div>
+                          <div className="text-muted-foreground">{gateNotice}</div>
+                        </div>
+                        <button
+                          onClick={() => setGateNotice(null)}
+                          className="ml-auto text-muted-foreground hover:text-foreground"
+                        >
+                          Dismiss
+                        </button>
+                      </div>
+                    )}
                     {/* Register Form */}
                     <div>
                     <h2 className="mb-2 text-foreground">Create Account</h2>
                     <p className="text-muted-foreground text-sm">
-                      Join UniStay KSA today
+                      Join Darek today
                     </p>
                   </div>
 

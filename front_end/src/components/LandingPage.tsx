@@ -17,6 +17,9 @@ export function LandingPage({ onNavigate, isLoggedIn, userType }: LandingPagePro
           <ImageWithFallback
             src="https://images.unsplash.com/photo-1672912995257-0c8255289523?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx1bml2ZXJzaXR5JTIwY2FtcHVzJTIwYWVyaWFsfGVufDF8fHx8MTc2MDM3Mjc3M3ww&ixlib=rb-4.1.0&q=80&w=1080"
             alt="Campus background"
+            loading="eager"
+            fetchPriority="high"
+            data-cloudinary-transform="c_fill,w_1920,dpr_auto"
             className="w-full h-full object-cover"
           />
         </div>
@@ -24,7 +27,7 @@ export function LandingPage({ onNavigate, isLoggedIn, userType }: LandingPagePro
         <div className="container mx-auto max-w-4xl relative z-10">
           <div className="text-center mb-8">
             <h1 className="text-4xl md:text-5xl mb-4 text-foreground">
-              UniStay KSA — Student Housing Made Simple
+              Darek — Student Housing Made Simple
             </h1>
             <p className="text-lg text-muted-foreground">
               A trusted platform connecting students and verified landlords across Saudi Arabia.
@@ -35,9 +38,9 @@ export function LandingPage({ onNavigate, isLoggedIn, userType }: LandingPagePro
             <CardContent className="p-6">
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
-                  <h3 className="mb-2 text-foreground">What is UniStay KSA?</h3>
+                  <h3 className="mb-2 text-foreground">What is Darek?</h3>
                   <p className="text-muted-foreground text-sm">
-                    UniStay KSA is a platform that helps students discover safe, verified accommodation near universities, and enables landlords to list properties tailored for student needs. Our goal is to make student housing transparent, affordable, and easy to access.
+                    Darek is a platform that helps students discover safe, verified accommodation near universities, and enables landlords to list properties tailored for student needs. Our goal is to make student housing transparent, affordable, and easy to access.
                   </p>
                 </div>
                 <div>
@@ -57,7 +60,7 @@ export function LandingPage({ onNavigate, isLoggedIn, userType }: LandingPagePro
       {/* About Section */}
       <div className="bg-background py-16 px-4">
         <div className="container mx-auto max-w-6xl">
-          <h2 className="text-center mb-12 text-foreground">About UniStay KSA</h2>
+          <h2 className="text-center mb-12 text-foreground">About Darek</h2>
           <div className="grid md:grid-cols-3 gap-8">
             <div>
               <h3 className="mb-2 text-foreground">Our Mission</h3>
@@ -85,7 +88,7 @@ export function LandingPage({ onNavigate, isLoggedIn, userType }: LandingPagePro
       <div className="bg-background py-16 px-4">
         <div className="container mx-auto max-w-6xl">
           <h2 className="text-center mb-12 text-foreground">
-            Why Choose UniStay KSA?
+            Why Choose Darek?
           </h2>
           <div className="grid md:grid-cols-3 gap-8">
             <div className="text-center">
@@ -126,7 +129,7 @@ export function LandingPage({ onNavigate, isLoggedIn, userType }: LandingPagePro
           <div className="space-y-4">
             <Card>
               <CardContent className="p-4">
-                <h3 className="text-foreground mb-2">Who can use UniStay KSA?</h3>
+                <h3 className="text-foreground mb-2">Who can use Darek?</h3>
                 <p className="text-muted-foreground text-sm">Students, employees and landlords across Saudi Arabia. Students should register with a `.edu.sa` email.</p>
               </CardContent>
             </Card>

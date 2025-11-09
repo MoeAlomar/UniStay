@@ -5,9 +5,11 @@ import { Slider } from "./ui/slider";
 import { Checkbox } from "./ui/checkbox";
 import { Label } from "./ui/label";
 import { Card, CardContent } from "./ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { SlidersHorizontal, Grid3x3, List, MapIcon } from "lucide-react";
 import { profile, type User } from "../services/auth";
-import { list as listListings } from "../services/listings";
+import { list as listListings, districtOptions as fetchDistrictOptions, details as listingDetails } from "../services/listings";
+import { getFavoriteIds } from "../services/favoritesLocal";
 
 interface SearchResultsProps {
   onNavigate: (page: string, propertyId?: string) => void;
@@ -21,7 +23,7 @@ const mockProperties = [
     title: "Modern Studio Apartment",
     location: "Al Malqa, Riyadh",
     distance: "0.8 km",
-    verified: true,
+    status: "AVAILABLE",
     femaleOnly: true,
     studentDiscount: true,
   },
@@ -32,7 +34,7 @@ const mockProperties = [
     title: "Shared Student Room",
     location: "Al Yasmin, Riyadh",
     distance: "1.2 km",
-    verified: true,
+    status: "RESERVED",
     femaleOnly: false,
     studentDiscount: true,
   },
@@ -43,7 +45,7 @@ const mockProperties = [
     title: "Spacious 2BR Apartment",
     location: "Olaya, Riyadh",
     distance: "2.5 km",
-    verified: true,
+    status: "AVAILABLE",
     femaleOnly: false,
     studentDiscount: false,
   },
@@ -54,7 +56,7 @@ const mockProperties = [
     title: "Cozy Studio Near Campus",
     location: "King Saud University Area",
     distance: "0.5 km",
-    verified: true,
+    status: "DRAFT",
     femaleOnly: true,
     studentDiscount: true,
   },
@@ -65,7 +67,7 @@ const mockProperties = [
     title: "Furnished Room with Utilities",
     location: "Al Nakheel, Riyadh",
     distance: "1.8 km",
-    verified: false,
+    status: "AVAILABLE",
     femaleOnly: false,
     studentDiscount: true,
   },
@@ -76,7 +78,7 @@ const mockProperties = [
     title: "Luxury Student Apartment",
     location: "Diplomatic Quarter",
     distance: "3.2 km",
-    verified: true,
+    status: "RESERVED",
     femaleOnly: true,
     studentDiscount: false,
   },
@@ -87,7 +89,12 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
   const [priceRange, setPriceRange] = useState([0, 5000]);
   const [showMap, setShowMap] = useState(false);
   const [items, setItems] = useState<typeof mockProperties>(mockProperties);
+  const [districtOptions, setDistrictOptions] = useState<{ value: string; label: string }[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [tabValue, setTabValue] = useState<"find" | "favorites">("find");
+  const [favItems, setFavItems] = useState<typeof mockProperties>([]);
+  const [favLoading, setFavLoading] = useState(false);
+  const [favError, setFavError] = useState<string | null>(null);
 
   // Controlled filter states
   const [typeStudio, setTypeStudio] = useState(false);
@@ -101,6 +108,13 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Initialize tab from URL, e.g., /?tab=favorites
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const initialTab = params.get("tab");
+      if (initialTab === "favorites") setTabValue("favorites");
+    } catch (_) {}
+
     (async () => {
       try {
         // Load user to determine role-based default filtering
@@ -109,20 +123,30 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
         setError(null);
         setLoading(true);
         const params: Record<string, any> = {};
-        const data = await listListings(params);
+        const [data, opts] = await Promise.all([
+          listListings(params),
+          fetchDistrictOptions(),
+        ]);
+        setDistrictOptions(opts);
+        const labelMap = Object.fromEntries(opts.map((o) => [o.value, o.label]));
         setItems(
-          data.map((l: any) => ({
-            id: String(l.id),
-            image:
-              "https://images.unsplash.com/photo-1515263487990-61b07816b324?auto=format&fit=crop&w=1080&q=60",
-            price: Number(l.price),
-            title: l.title,
-            location: l.district || "",
-            verified: true,
-            femaleOnly: !!l.female_only,
-            roommatesAllowed: !!l.roommates_allowed,
-            studentDiscount: !!l.student_discount,
-          }))
+          data.map((l: any) => {
+            const placeholder = "https://images.unsplash.com/photo-1515263487990-61b07816b324?auto=format&fit=crop&w=720&q=60";
+            const primary = Array.isArray(l.images) ? (l.images.find((i: any) => i.is_primary) || null) : null;
+            const first = Array.isArray(l.images) && l.images.length ? l.images[0] : null;
+            const imageUrl = (primary?.url || first?.url || placeholder);
+            return {
+              id: String(l.id),
+              image: imageUrl,
+              price: Number(l.price),
+              title: l.title,
+              location: labelMap[l.district] || l.district || "",
+              status: l.status,
+              femaleOnly: !!l.female_only,
+              roommatesAllowed: !!l.roommates_allowed,
+              studentDiscount: !!l.student_discount,
+            };
+          })
         );
       } catch (_) {
         // keep mock on error (e.g., not authenticated)
@@ -131,6 +155,62 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
       }
     })();
   }, []);
+
+  async function loadFavorites() {
+    try {
+      setFavLoading(true);
+      setFavError(null);
+      const ids = getFavoriteIds();
+      if (!ids.length) {
+        setFavItems([]);
+        return;
+      }
+      const [opts, list] = await Promise.all([
+        fetchDistrictOptions(),
+        Promise.all(ids.map(async (id) => { try { return await listingDetails(id); } catch (_) { return null; } }))
+      ]);
+      const labelMap = Object.fromEntries(opts.map((o) => [o.value, o.label]));
+      const transformed = (list.filter(Boolean) as any[]).map((l: any) => {
+        const placeholder = "https://images.unsplash.com/photo-1515263487990-61b07816b324?auto=format&fit=crop&w=720&q=60";
+        const primary = Array.isArray(l.images) ? (l.images.find((i: any) => i.is_primary) || null) : null;
+        const first = Array.isArray(l.images) && l.images.length ? l.images[0] : null;
+        const imageUrl = (primary?.url || first?.url || placeholder);
+        return {
+          id: String(l.id),
+          image: imageUrl,
+          price: Number(l.price),
+          title: l.title,
+          location: labelMap[l.district] || l.district || "",
+          status: l.status,
+          femaleOnly: !!l.female_only,
+          roommatesAllowed: !!l.roommates_allowed,
+          studentDiscount: !!l.student_discount,
+        };
+      });
+      setFavItems(transformed as any);
+    } catch (e: any) {
+      setFavError("Failed to load favorites.");
+    } finally {
+      setFavLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (tabValue === "favorites") {
+      loadFavorites();
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set("tab", "favorites");
+        window.history.replaceState(null, "", url.toString());
+      } catch (_) {}
+    } else {
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("tab");
+        window.history.replaceState(null, "", url.toString());
+      } catch (_) {}
+    }
+  }, [tabValue]);
 
   const selectedTypes = useMemo(() => {
     const t: string[] = [];
@@ -172,19 +252,25 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
         if (effectiveSelectedTypes.length > 0 && !effectiveSelectedTypes.includes(l.type)) return false;
         return true;
       });
+      const labelMap = Object.fromEntries(districtOptions.map((o) => [o.value, o.label]));
       setItems(
-        filtered.map((l: any) => ({
-          id: String(l.id),
-          image:
-            "https://images.unsplash.com/photo-1515263487990-61b07816b324?auto=format&fit=crop&w=1080&q=60",
-          price: Number(l.price),
-          title: l.title,
-          location: l.district || "",
-          verified: true,
-          femaleOnly: !!l.female_only,
-          roommatesAllowed: !!l.roommates_allowed,
-          studentDiscount: !!l.student_discount,
-        }))
+        filtered.map((l: any) => {
+          const placeholder = "https://images.unsplash.com/photo-1515263487990-61b07816b324?auto=format&fit=crop&w=720&q=60";
+          const primary = Array.isArray(l.images) ? (l.images.find((i: any) => i.is_primary) || null) : null;
+          const first = Array.isArray(l.images) && l.images.length ? l.images[0] : null;
+          const imageUrl = (primary?.url || first?.url || placeholder);
+          return {
+            id: String(l.id),
+            image: imageUrl,
+            price: Number(l.price),
+            title: l.title,
+            location: labelMap[l.district] || l.district || "",
+            status: l.status,
+            femaleOnly: !!l.female_only,
+            roommatesAllowed: !!l.roommates_allowed,
+            studentDiscount: !!l.student_discount,
+          };
+        })
       );
     } catch (e: any) {
       setError("Failed to apply filters. Please try again.");
@@ -216,11 +302,18 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
   return (
     <div className="min-h-screen bg-secondary">
       <div className="container mx-auto px-4 py-8">
-        <div className="flex gap-6">
-          {/* Filter Sidebar */}
-          <div className="hidden lg:block w-80 flex-shrink-0">
-            <Card className="sticky top-24">
-              <CardContent className="p-6">
+        <Tabs value={tabValue} onValueChange={(v) => setTabValue(v as any)}>
+          <TabsList className="w-full mb-6">
+            <TabsTrigger value="find">Find</TabsTrigger>
+            <TabsTrigger value="favorites">Favorites</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="find">
+            <div className="flex gap-6">
+              {/* Filter Sidebar */}
+              <div className="hidden lg:block w-80 flex-shrink-0">
+                <Card className="sticky top-24">
+                  <CardContent className="p-6">
                 <div className="flex items-center gap-2 mb-6">
                   <SlidersHorizontal className="w-5 h-5 text-primary" />
                   <h3 className="text-foreground">Filters</h3>
@@ -307,87 +400,125 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
                     Reset Filters
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Results Area */}
-          <div className="flex-1">
-            {/* Results Header */}
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-foreground mb-1">
-                  Student Housing in Riyadh
-                </h2>
-                <p className="text-muted-foreground text-sm">
-                  {items.length} properties found
-                </p>
+                  </CardContent>
+                </Card>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setShowMap(!showMap)}
-                >
-                  <MapIcon className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant={viewMode === "grid" ? "default" : "outline"}
-                  size="icon"
-                  onClick={() => setViewMode("grid")}
-                >
-                  <Grid3x3 className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant={viewMode === "list" ? "default" : "outline"}
-                  size="icon"
-                  onClick={() => setViewMode("list")}
-                >
-                  <List className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
+              {/* Results Area */}
+              <div className="flex-1">
+                {/* Results Header */}
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-foreground mb-1">
+                      Student Housing in Riyadh
+                    </h2>
+                    <p className="text-muted-foreground text-sm">
+                      {items.length} properties found
+                    </p>
+                  </div>
 
-            {error && (
-              <div className="mb-4 text-red-600 text-sm">{error}</div>
-            )}
-
-            {loading && (
-              <div className="mb-4 text-muted-foreground text-sm">Loading...</div>
-            )}
-
-            {/* Map Preview */}
-            {showMap && (
-              <Card className="mb-6 overflow-hidden">
-                <div className="h-64 bg-gradient-to-br from-green-100 to-blue-100 flex items-center justify-center">
-                  <div className="text-center text-muted-foreground">
-                    <MapIcon className="w-12 h-12 mx-auto mb-2" />
-                    <p>Map View</p>
-                    <p className="text-sm">Google Maps integration would display here</p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setShowMap(!showMap)}
+                    >
+                      <MapIcon className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant={viewMode === "grid" ? "default" : "outline"}
+                      size="icon"
+                      onClick={() => setViewMode("grid")}
+                    >
+                      <Grid3x3 className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant={viewMode === "list" ? "default" : "outline"}
+                      size="icon"
+                      onClick={() => setViewMode("list")}
+                    >
+                      <List className="w-4 h-4" />
+                    </Button>
                   </div>
                 </div>
-              </Card>
-            )}
 
-            {/* Property Grid */}
-            <div
-              className={
-                viewMode === "grid"
-                  ? "grid md:grid-cols-2 xl:grid-cols-3 gap-6"
-                  : "space-y-4"
-              }
-            >
-              {items.map((property) => (
-                <PropertyCard
-                  key={property.id}
-                  {...property}
-                  onClick={() => onNavigate("listing", property.id)}
-                />
-              ))}
+                {error && (
+                  <div className="mb-4 text-red-600 text-sm">{error}</div>
+                )}
+
+                {loading && (
+                  <div className="mb-4 text-muted-foreground text-sm">Loading...</div>
+                )}
+
+                {/* Map Preview */}
+                {showMap && (
+                  <Card className="mb-6 overflow-hidden">
+                    <div className="h-64 bg-gradient-to-br from-green-100 to-blue-100 flex items-center justify-center">
+                      <div className="text-center text-muted-foreground">
+                        <MapIcon className="w-12 h-12 mx-auto mb-2" />
+                        <p>Map View</p>
+                        <p className="text-sm">Google Maps integration would display here</p>
+                      </div>
+                    </div>
+                  </Card>
+                )}
+
+                {/* Property Grid */}
+                <div
+                  className={
+                    viewMode === "grid"
+                      ? "grid md:grid-cols-2 xl:grid-cols-3 gap-6"
+                      : "space-y-4"
+                  }
+                >
+                  {items.map((property) => (
+                    <PropertyCard
+                      key={property.id}
+                      {...property}
+                      onClick={() => onNavigate("listing", property.id)}
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          </TabsContent>
+
+          <TabsContent value="favorites">
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-foreground mb-1">Favorites</h2>
+                  <p className="text-muted-foreground text-sm">{favItems.length} saved listings</p>
+                </div>
+                <Button variant="outline" onClick={() => setTabValue("find")}>Back to Find</Button>
+              </div>
+
+              {favError && <div className="mb-4 text-red-600 text-sm">{favError}</div>}
+              {favLoading && <div className="mb-4 text-muted-foreground text-sm">Loading...</div>}
+
+              {(!favLoading && favItems.length === 0) && (
+                <Card className="p-8 text-center text-muted-foreground">No favorites yet. Tap the heart on any listing.</Card>
+              )}
+
+              {favItems.length > 0 && (
+                <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {favItems.map((property) => (
+                    <PropertyCard
+                      key={property.id}
+                      {...property}
+                      onClick={() => onNavigate("listing", property.id)}
+                      onFavoriteToggle={(favorited) => {
+                        if (!favorited) {
+                          setFavItems((prev) => prev.filter((it) => it.id !== property.id));
+                        }
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

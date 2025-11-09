@@ -16,6 +16,7 @@ import type { RoommatePost, RoommateGroup } from "../services/roommates";
 import { posts as fetchPosts, createPost, deletePost, groups as fetchGroups, createRequest, requests as fetchRequests, acceptRequest, rejectRequest, deleteRequest, leaveGroup, kickMember, type RoommateRequest } from "../services/roommates";
 import { districtChoices } from "../services/listings";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "./ui/collapsible";
+import UserProfileDialog from "./UserProfileDialog";
 
 interface RoommateMatchingProps {
   onNavigate: (page: string) => void;
@@ -77,6 +78,8 @@ export function RoommateMatching({ onNavigate }: RoommateMatchingProps) {
   const [requestSuccess, setRequestSuccess] = useState<string | null>(null);
   // Group details
   const [selectedGroup, setSelectedGroup] = useState<RoommateGroup | null>(null);
+  const [profileUser, setProfileUser] = useState<User | null>(null);
+  const [showProfile, setShowProfile] = useState<boolean>(false);
 
   useEffect(() => {
     // Load user and initial data
@@ -146,18 +149,30 @@ export function RoommateMatching({ onNavigate }: RoommateMatchingProps) {
     });
   }, [postList, filterUniversity, filterDistrict, filterFemaleOnly, filterType]);
 
-  async function handleApplyFilters() {
-    // Apply pending UI selections to active filters
-    setFilterUniversity(pendingUniversity);
-    setFilterDistrict(pendingDistrict);
-    setFilterFemaleOnly(pendingFemaleOnly);
-    setFilterType(pendingType);
+  async function handleApplyFilters(overrides?: {
+    university?: string;
+    district?: string;
+    femaleOnly?: string;
+    type?: string;
+  }) {
+    // Determine next values either from overrides or pending UI state
+    const nextUniversity = overrides?.university ?? pendingUniversity;
+    const nextDistrict = overrides?.district ?? pendingDistrict;
+    const nextFemaleOnly = overrides?.femaleOnly ?? pendingFemaleOnly;
+    const nextType = overrides?.type ?? pendingType;
+
+    // Apply to active filters
+    setFilterUniversity(nextUniversity);
+    setFilterDistrict(nextDistrict);
+    setFilterFemaleOnly(nextFemaleOnly);
+    setFilterType(nextType);
+
     // Fetch server-side filtered list for better performance
     const params: Record<string, any> = {};
-    if (pendingUniversity !== "any") params.university = pendingUniversity;
-    if (pendingDistrict !== "any") params.district = pendingDistrict;
-    if (pendingFemaleOnly === "female") params.female_only = true;
-    if (pendingType !== "any") params.preferred_type = pendingType;
+    if (nextUniversity !== "any") params.university = nextUniversity;
+    if (nextDistrict !== "any") params.district = nextDistrict;
+    if (nextFemaleOnly === "female") params.female_only = true;
+    if (nextType !== "any") params.preferred_type = nextType;
     try {
       setLoadingPosts(true);
       const list = await fetchPosts(params);
@@ -167,6 +182,16 @@ export function RoommateMatching({ onNavigate }: RoommateMatchingProps) {
     } finally {
       setLoadingPosts(false);
     }
+  }
+
+  async function handleResetFilters() {
+    // Reset pending UI selections
+    setPendingUniversity("any");
+    setPendingDistrict("any");
+    setPendingFemaleOnly("any");
+    setPendingType("any");
+    // Immediately apply the reset to active filters and refresh results
+    await handleApplyFilters({ university: "any", district: "any", femaleOnly: "any", type: "any" });
   }
 
   async function handleSendRequest() {
@@ -406,8 +431,8 @@ export function RoommateMatching({ onNavigate }: RoommateMatchingProps) {
                         </div>
 
                         <div className="flex gap-3">
-                          <Button onClick={handleApplyFilters} className="flex-1">Apply Filters</Button>
-                          <Button variant="outline" className="flex-1" onClick={() => { setPendingUniversity("any"); setPendingDistrict("any"); setPendingFemaleOnly("any"); setPendingType("any"); }}>Reset</Button>
+                          <Button onClick={() => handleApplyFilters()} className="flex-1">Apply Filters</Button>
+                          <Button variant="outline" className="flex-1" onClick={handleResetFilters}>Reset</Button>
                         </div>
                       </CollapsibleContent>
                     </Collapsible>
@@ -498,7 +523,12 @@ export function RoommateMatching({ onNavigate }: RoommateMatchingProps) {
                         <div className="flex items-start justify-between mb-2">
                           <div>
                             <h3 className="text-foreground">
-                              {(p.author?.first_name || p.author?.username) ?? "Roommate"}
+                              <button
+                                className="text-primary underline"
+                                onClick={(e: React.MouseEvent<HTMLButtonElement>) => { e.stopPropagation(); setProfileUser((p.author as any) || null); setShowProfile(true); }}
+                              >
+                                {(p.author?.first_name || p.author?.username) ?? "Roommate"}
+                              </button>
                             </h3>
                             <p className="text-sm text-muted-foreground">{p.university || "—"}</p>
                           </div>
@@ -644,7 +674,11 @@ export function RoommateMatching({ onNavigate }: RoommateMatchingProps) {
               <div className="space-y-4">
                 <div className="flex items-start justify-between">
                   <div>
-                    <h3 className="text-foreground">{(selectedPost.author?.first_name || selectedPost.author?.username) ?? "Roommate"}</h3>
+                    <h3 className="text-foreground">
+                      <button className="text-primary underline" onClick={() => { setProfileUser((selectedPost.author as any) || null); setShowProfile(true); }}>
+                        {(selectedPost.author?.first_name || selectedPost.author?.username) ?? "Roommate"}
+                      </button>
+                    </h3>
                     <p className="text-sm text-muted-foreground">{selectedPost.university || "—"}</p>
                   </div>
                   {selectedPost.female_only && (<Badge className="bg-purple-600 hover:bg-purple-700">Female Only</Badge>)}
@@ -696,7 +730,7 @@ export function RoommateMatching({ onNavigate }: RoommateMatchingProps) {
                   <div className="space-y-2">
                     {(selectedGroup.members || []).map((m) => (
                       <div key={(m as any).id} className="flex items-center justify-between text-sm">
-                        <span>{formatName(m)}</span>
+                        <button className="text-primary underline" onClick={() => { setProfileUser(m as any); setShowProfile(true); }}>{formatName(m)}</button>
                         {currentUser?.id === (selectedGroup.leader as any)?.id && currentUser?.id !== (m as any).id && (
                           <Button variant="outline" size="sm" onClick={() => handleKickMember(selectedGroup.id, (m as any).id)}>Kick</Button>
                         )}
@@ -713,6 +747,9 @@ export function RoommateMatching({ onNavigate }: RoommateMatchingProps) {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Profile Dialog */}
+        <UserProfileDialog user={profileUser} open={showProfile} onOpenChange={setShowProfile} />
       </div>
     </div>
   );

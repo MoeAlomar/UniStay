@@ -1,12 +1,13 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { Separator } from "./ui/separator";
-import { CheckCircle2, AlertCircle, ArrowLeft, Moon, Sun } from "lucide-react";
+import { CheckCircle2, AlertCircle, ArrowLeft } from "lucide-react";
 import type { User as AppUser } from "../services/auth";
-import { profile as fetchProfile } from "../services/auth";
+import { profile as fetchProfile, updateAvatar } from "../services/auth";
 import { clearTokens } from "../services/api";
+import ImageCropDialog from "./ImageCropDialog";
 
 type Props = {
   user?: AppUser | null;
@@ -17,7 +18,12 @@ export function ProfilePage({ user: userProp, onNavigate }: Props) {
   const [user, setUser] = useState<AppUser | null | undefined>(userProp);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isDark, setIsDark] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [cropOpen, setCropOpen] = useState(false);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [preloading, setPreloading] = useState(false);
 
   useEffect(() => {
     // Ensure URL reflects the profile page
@@ -40,38 +46,37 @@ export function ProfilePage({ user: userProp, onNavigate }: Props) {
     }
   }, [userProp]);
 
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("theme");
-      const initialDark = saved ? saved === "dark" : document.documentElement.classList.contains("dark");
-      document.documentElement.classList.toggle("dark", initialDark);
-      setIsDark(initialDark);
-    } catch (_) {
-      const initialDark = document.documentElement.classList.contains("dark");
-      setIsDark(initialDark);
-    }
-  }, []);
-
-  function toggleDarkMode() {
-    setIsDark((prev) => {
-      const next = !prev;
-      document.documentElement.classList.toggle("dark", next);
-      try {
-        localStorage.setItem("theme", next ? "dark" : "light");
-      } catch (_) {}
-      return next;
-    });
-  }
+  // Removed dark/light toggle from Profile page to avoid duplicate controls
 
   const initials = useMemo(() => {
     const fn = user?.first_name?.trim() || "";
     const ln = user?.last_name?.trim() || "";
-    const f = fn ? fn[0] : user?.username?.[0] || "U";
+    const f = fn ? fn[0] : "";
     const l = ln ? ln[0] : "";
-    return (f + l).toUpperCase();
+    const pair = (f + l).toUpperCase();
+    return pair || "US";
   }, [user]);
 
   const verified = !!user?.is_email_verified;
+
+  function transformAvatar(url?: string | null): string | undefined {
+    const src = typeof url === "string" ? url : undefined;
+    if (!src || !src.includes("res.cloudinary.com") || !src.includes("/image/upload/")) return src;
+    try {
+      const marker = "/image/upload/";
+      const idx = src.indexOf(marker);
+      const before = src.slice(0, idx + marker.length);
+      const after = src.slice(idx + marker.length);
+      const hasTransforms = after[0] !== 'v' && after.includes('/');
+      const transform = "c_fill,w_128,h_128,dpr_auto";
+      if (hasTransforms) {
+        return `${before}f_auto,q_auto,${transform},${after}`;
+      }
+      return `${before}f_auto,q_auto,${transform}/${after}`;
+    } catch {
+      return src;
+    }
+  }
 
   if (loading) {
     return (
@@ -123,24 +128,27 @@ export function ProfilePage({ user: userProp, onNavigate }: Props) {
           <div className="flex items-center gap-4">
             <div className="relative">
               <Avatar className="h-16 w-16">
-                {/* Replace AvatarImage src with real photo when available */}
-                <AvatarImage src={undefined} alt="Profile photo" />
+                {user?.avatar_url ? (
+                  <AvatarImage src={transformAvatar(user.avatar_url)} alt="Profile photo" loading="eager" decoding="async" />
+                ) : null}
                 <AvatarFallback>{initials}</AvatarFallback>
               </Avatar>
-              <Button
-                type="button"
-                size="icon"
-                variant="outline"
-                aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-                onClick={toggleDarkMode}
-                className="absolute -top-2 -left-2 h-8 w-8 rounded-md bg-card/80 backdrop-blur border border-border shadow-sm hover:bg-muted transition-colors"
-              >
-                {isDark ? (
-                  <Sun className="h-4 w-4 text-white" />
-                ) : (
-                  <Moon className="h-4 w-4 text-black" />
-                )}
-              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setUploadError(null);
+                  try {
+                    const url = URL.createObjectURL(file);
+                    setCropSrc(url);
+                    setCropOpen(true);
+                  } catch (_) {}
+                }}
+              />
             </div>
             <div className="flex-1">
               <CardTitle className="text-2xl">
@@ -163,6 +171,19 @@ export function ProfilePage({ user: userProp, onNavigate }: Props) {
           </div>
         </CardHeader>
         <CardContent>
+          <div className="flex items-center gap-2 mb-4">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={uploading}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {uploading ? "Uploading..." : "Change Photo"}
+            </Button>
+            {uploadError && (
+              <span className="text-sm text-red-600">{uploadError}</span>
+            )}
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <div className="text-sm text-muted-foreground">First name</div>
@@ -194,6 +215,49 @@ export function ProfilePage({ user: userProp, onNavigate }: Props) {
           )}
         </CardContent>
       </Card>
+      <ImageCropDialog
+        open={cropOpen}
+        onOpenChange={(o) => {
+          setCropOpen(o);
+          if (!o) {
+            try {
+              if (cropSrc) URL.revokeObjectURL(cropSrc);
+            } catch (_) {}
+            setCropSrc(null);
+          }
+        }}
+        src={cropSrc}
+        onCropped={async (file) => {
+          setUploading(true);
+          try {
+            const updated = await updateAvatar(file);
+            // Preload new avatar before swapping to avoid fallback flash
+            const nextUrl = transformAvatar(updated?.avatar_url) || updated?.avatar_url || undefined;
+            if (nextUrl) {
+              setPreloading(true);
+              const img = new Image();
+              (img as any).loading = "eager";
+              (img as any).decoding = "async";
+              img.src = nextUrl;
+              const finish = () => {
+                setPreloading(false);
+                setUser(updated);
+              };
+              img.onload = finish;
+              img.onerror = finish;
+            } else {
+              setUser(updated);
+            }
+          } catch (err: any) {
+            const msg = err?.response?.data?.avatar || err?.message || "Failed to upload avatar";
+            setUploadError(typeof msg === 'string' ? msg : JSON.stringify(msg));
+          } finally {
+            setUploading(false);
+          }
+        }}
+        title="Crop Profile Photo"
+        outputSize={512}
+      />
     </div>
   );
 }

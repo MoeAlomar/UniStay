@@ -23,6 +23,8 @@ export type Listing = {
   location_link: string;
   created_at: string;
   modified_at: string;
+  // Nested images from backend; urls are fully-qualified and browser-ready
+  images?: Array<{ id: string; url: string; is_primary?: boolean }>;
 };
 
 export async function list(params?: Record<string, any>) {
@@ -77,4 +79,3 @@ export async function districtOptions() {
   const { data } = await api.get("/listings/district-options/");
   return data as { value: string; label: string }[];
 }
-

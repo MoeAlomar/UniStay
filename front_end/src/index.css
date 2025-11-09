@@ -1300,6 +1300,27 @@
     background-color: var(--color-blue-600);
   }
 
+  /* Utility for yellow badge background (tailwind-like yellow-600) */
+  .bg-yellow-600 {
+    background-color: #ca8a04;
+  }
+
+  /* Custom utilities to support new Badge variants */
+  .bg-type-green {
+    background-color: #5F99AE;
+  }
+  .bg-red-600 {
+    background-color: #dc2626;
+  }
+  .bg-gray-600 {
+    background-color: #4b5563;
+  }
+
+  /* Apartment type color */
+  .bg-apartment {
+    background-color: #88304E;
+  }
+
   .bg-border {
     background-color: var(--border);
   }

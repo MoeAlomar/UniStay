@@ -44,6 +44,9 @@ class User(AbstractUser):
         ]
     )
     is_email_verified = models.BooleanField(default=False)
+    avatar_url = models.URLField(max_length=500, blank=True, null=True)
+    # Cloudinary-backed avatar image (saved via DEFAULT_FILE_STORAGE)
+    avatar = models.ImageField(upload_to="avatars/", blank=True, null=True)
 
     # If using email for login/authentication
     USERNAME_FIELD = 'email'

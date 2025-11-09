@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -9,47 +9,24 @@ import { Textarea } from "./ui/textarea";
 import { Switch } from "./ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
+import { Progress } from "./ui/progress";
 import {
   Home,
   MessageSquare,
-  CheckCircle2,
-  Settings,
   PlusCircle,
   Edit,
   Trash2,
 } from "lucide-react";
 import { PropertyCard } from "./PropertyCard";
+import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { districtOptions as fetchDistrictOptions } from "../services/listings";
 import { getAmenitiesForListing, setAmenitiesForListing, removeAmenitiesForListing } from "../services/amenitiesLocal";
+import { bulkUploadImages, listImagesForListing } from "../services/listingImages";
 
 interface OwnerDashboardProps {
   onNavigate: (page: string, propertyId?: string) => void;
 }
 
-const mockListings = [
-  {
-    id: "1",
-    image: "https://images.unsplash.com/photo-1515263487990-61b07816b324?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBhcGFydG1lbnQlMjBidWlsZGluZ3xlbnwxfHx8fDE3NjAzNjMxMTl8MA&ixlib=rb-4.1.0&q=80&w=1080",
-    price: 1800,
-    title: "Modern Studio Apartment",
-    location: "Al Malqa, Riyadh",
-    distance: "0.8 km",
-    verified: true,
-    femaleOnly: true,
-    studentDiscount: true,
-  },
-  {
-    id: "2",
-    image: "https://images.unsplash.com/photo-1649429710616-dad56ce9a076?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjaXR5JTIwYXBhcnRtZW50JTIwaW50ZXJpb3J8ZW58MXx8fHwxNzYwMzcyNzczfDA&ixlib=rb-4.1.0&q=80&w=1080",
-    price: 2500,
-    title: "Spacious 2BR Apartment",
-    location: "Olaya, Riyadh",
-    distance: "2.5 km",
-    verified: true,
-    femaleOnly: false,
-    studentDiscount: false,
-  },
-];
 
 export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
   const [showNewListing, setShowNewListing] = useState(false);
@@ -80,6 +57,84 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
   const [amenityTitle, setAmenityTitle] = useState<string>("");
   const [amenitySymbol, setAmenitySymbol] = useState<string>("");
 
+  // Photo upload state
+  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Helper: reset the new-listing form to initial defaults to avoid stale values
+  const resetNewListingForm = () => {
+    setFemaleOnly(false);
+    setRoommatesAllowed(false);
+    setStudentDiscount(false);
+    setTitle("");
+    setPrice("");
+    setDistrictValue("");
+    setLocationLink("");
+    setIdType("");
+    setIdNumber("");
+    setDeedNumber("");
+    setDescription("");
+    setBedrooms("");
+    setBathrooms("");
+    setArea("");
+    setFormError(null);
+    setStatusValue("DRAFT");
+    setTypeValue("APARTMENT");
+    setAmenities([]);
+    setAmenityTitle("");
+    setAmenitySymbol("");
+    setPhotoFiles([]);
+    setPhotoPreviews([]);
+    setUploadProgress(0);
+    setPhotoError(null);
+  };
+
+  // Photo helpers: drag-drop, validation, and removal
+  const MAX_FILES = 10;
+  const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+  function handleAddFiles(files: File[]) {
+    if (!files || files.length === 0) return;
+    setPhotoError(null);
+    const remaining = Math.max(0, MAX_FILES - photoFiles.length);
+    const accepted: File[] = [];
+    const previews: string[] = [];
+    for (const f of files) {
+      const okType = f.type?.startsWith("image/") ?? true;
+      const okSize = typeof f.size === "number" ? f.size <= MAX_SIZE : true;
+      if (!okType) {
+        setPhotoError(`Unsupported file type: ${f.name}`);
+        continue;
+      }
+      if (!okSize) {
+        setPhotoError(`File exceeds 5MB: ${f.name}`);
+        continue;
+      }
+      accepted.push(f);
+      previews.push(URL.createObjectURL(f));
+      if (accepted.length >= remaining) break;
+    }
+    if (accepted.length === 0) return;
+    if (files.length > remaining) {
+      setPhotoError(`Only ${remaining} more images allowed (max ${MAX_FILES}).`);
+    }
+    setPhotoFiles((prev) => [...prev, ...accepted]);
+    setPhotoPreviews((prev) => [...prev, ...previews]);
+  }
+
+  function removePhotoAt(index: number) {
+    setPhotoFiles((prev) => prev.filter((_, i) => i !== index));
+    setPhotoPreviews((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      const removed = prev[index];
+      try { if (removed) URL.revokeObjectURL(removed); } catch (_) {}
+      return next;
+    });
+    setPhotoError(null);
+  }
+
   // Common amenity presets for quick selection in tabs
   const COMMON_AMENITIES: { title: string; symbol: string }[] = [
     { title: "Wi‑Fi", symbol: "📶" },
@@ -100,27 +155,32 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
         const d = await dashboard();
         setStats({ total_listings: d.total_listings, available: d.available, reserved: d.reserved, draft: d.draft });
         setListings(
-          d.listings.map((l: any) => ({
-            id: String(l.id),
-            image: "https://images.unsplash.com/photo-1515263487990-61b07816b324",
-            price: Number(l.price),
-            title: l.title,
-            location: l.district || "",
-            description: l.description || "",
-            type: l.type || "",
-            femaleOnly: !!l.female_only,
-            roommatesAllowed: !!l.roommates_allowed,
-            studentDiscount: !!l.student_discount,
-            status: l.status,
-            locationLink: l.location_link || "",
-            bedrooms: l.bedrooms ?? null,
-            bathrooms: l.bathrooms ?? null,
-            area: l.area ?? null,
-            idType: l.id_type || "",
-            idNumber: l.owner_identification_id || "",
-            deedNumber: l.deed_number || "",
-            amenities: getAmenitiesForListing(l.id),
-          }))
+          d.listings.map((l: any) => {
+            const primary = Array.isArray(l.images) ? (l.images.find((i: any) => i.is_primary) || null) : null;
+            const first = Array.isArray(l.images) && l.images.length ? l.images[0] : null;
+            const imageUrl = (primary?.url || first?.url || "https://images.unsplash.com/photo-1515263487990-61b07816b324");
+            return {
+              id: String(l.id),
+              image: imageUrl,
+              price: Number(l.price),
+              title: l.title,
+              location: l.district || "",
+              description: l.description || "",
+              type: l.type || "",
+              femaleOnly: !!l.female_only,
+              roommatesAllowed: !!l.roommates_allowed,
+              studentDiscount: !!l.student_discount,
+              status: l.status,
+              locationLink: l.location_link || "",
+              bedrooms: l.bedrooms ?? null,
+              bathrooms: l.bathrooms ?? null,
+              area: l.area ?? null,
+              idType: l.id_type || "",
+              idNumber: l.owner_identification_id || "",
+              deedNumber: l.deed_number || "",
+              amenities: getAmenitiesForListing(l.id),
+            };
+          })
         );
       } catch (_) {
         // keep mock
@@ -155,17 +215,7 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                   3
                 </span>
               </button>
-              <button
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-sidebar-accent text-sidebar-foreground transition-colors"
-                onClick={() => onNavigate("verification")}
-              >
-                <CheckCircle2 className="w-5 h-5" />
-                <span>Verification</span>
-              </button>
-              <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-sidebar-accent text-sidebar-foreground transition-colors">
-                <Settings className="w-5 h-5" />
-                <span>Settings</span>
-              </button>
+              {/* Verification and Settings removed */}
             </nav>
           </div>
         </div>
@@ -175,14 +225,18 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
           <div className="max-w-7xl mx-auto">
             <div className="flex items-center justify-between mb-8">
               <h1 className="text-foreground">My Listings</h1>
-              <Button onClick={() => setShowNewListing(!showNewListing)}>
+              <Button onClick={() => {
+                // When opening the form, ensure it's pristine
+                if (!showNewListing) resetNewListingForm();
+                setShowNewListing(!showNewListing);
+              }}>
                 <PlusCircle className="w-4 h-4 mr-2" />
                 Add New Listing
               </Button>
             </div>
 
             {/* Summary Cards */}
-            <div className="grid md:grid-cols-4 gap-6 mb-8">
+            <div className="grid md:grid-cols-3 gap-6 mb-8">
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm text-muted-foreground">
@@ -191,17 +245,6 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl text-foreground">{stats?.total_listings ?? 12}</div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm text-muted-foreground">
-                    Active Chats
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl text-foreground">{stats ? stats.available + stats.reserved : 8}</div>
                 </CardContent>
               </Card>
 
@@ -245,11 +288,11 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                         <div className="grid md:grid-cols-2 gap-6">
                           <div>
                             <Label htmlFor="title">Property Title</Label>
-                            <Input id="title" placeholder="e.g., Modern Studio Apartment" value={title} onChange={(e) => setTitle(e.target.value)} />
+                            <Input id="title" placeholder="e.g., Modern Apartment" value={title} onChange={(e) => setTitle(e.target.value)} />
                           </div>
                           <div>
                             <Label htmlFor="price">Monthly Rent (SAR)</Label>
-                            <Input id="price" type="number" placeholder="1800" value={price as any} onChange={(e) => setPrice(Number(e.target.value))} />
+                            <Input id="price" type="number" placeholder="2000" value={price as any} onChange={(e) => setPrice(Number(e.target.value))} />
                           </div>
                         </div>
 
@@ -360,12 +403,59 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
 
                         <div>
                           <Label>Property Photos</Label>
-                          <div className="mt-2 border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-colors">
+                          <div
+                            className="mt-2 border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-colors"
+                            onClick={() => fileInputRef.current?.click()}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              const files = Array.from(e.dataTransfer.files || []);
+                              handleAddFiles(files);
+                            }}
+                          >
                             <PlusCircle className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                            <p className="text-sm text-muted-foreground">
-                              Click to upload photos
-                            </p>
+                            <p className="text-sm text-muted-foreground">Click or drag to upload photos</p>
+                            <p className="text-xs text-muted-foreground mt-1">Up to 10 images, max 5MB each</p>
+                            <input
+                              ref={fileInputRef}
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              className="hidden"
+                              onChange={(e) => {
+                                const files = Array.from(e.target.files || []);
+                                handleAddFiles(files);
+                                e.currentTarget.value = ""; // reset for re-selecting same files
+                              }}
+                            />
                           </div>
+                          {photoError && (
+                            <div className="mt-2 text-red-600 text-sm">{photoError}</div>
+                          )}
+                          {photoPreviews.length > 0 && (
+                            <div className="mt-4">
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                {photoPreviews.map((src, idx) => (
+                                  <div key={src} className="relative group">
+                                    <img src={src} alt={`Selected ${idx + 1}`} className="w-full h-24 object-cover rounded-md border" />
+                                    <button
+                                      type="button"
+                                      className="absolute top-2 right-2 bg-card/80 hover:bg-card text-foreground text-xs px-2 py-1 rounded-md border opacity-0 group-hover:opacity-100 transition-opacity"
+                                      onClick={() => removePhotoAt(idx)}
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="mt-2 text-xs text-muted-foreground">{photoFiles.length} selected</div>
+                              {uploadProgress > 0 && uploadProgress < 100 && (
+                                <div className="mt-3"><Progress value={uploadProgress} /></div>
+                              )}
+                            </div>
+                          )}
                         </div>
 
                         <div className="space-y-4">
@@ -454,37 +544,62 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                                 bathrooms: bathrooms === "" ? undefined : Number(bathrooms),
                                 area: area === "" ? undefined : Number(area),
                               });
+                              // Upload photos if any selected
+                              let firstUploadedUrl: string | undefined;
+                              if (photoFiles.length > 0) {
+                                try {
+                                  setUploadProgress(10);
+                                  const res = await bulkUploadImages(created.id, photoFiles, (p) => setUploadProgress(p));
+                                  firstUploadedUrl = (Array.isArray(res.images) && res.images.length) ? (res.images.find((i: any) => i.is_primary)?.url || res.images[0]?.url) : undefined;
+                                  setUploadProgress(100);
+                                } catch (err: any) {
+                                  const msg = err?.response?.data?.images || err?.message || "Failed to upload images.";
+                                  setPhotoError(typeof msg === "string" ? msg : JSON.stringify(msg));
+                                }
+                              }
                               // Persist amenities client-side since backend doesn't yet support them
                               try { setAmenitiesForListing(created.id, amenities); } catch (_) {}
+                              // Close and reset the form so no stale values remain
                               setShowNewListing(false);
+                              resetNewListingForm();
                               const label = districtOptions.find((o) => o.value === districtValue)?.label || created.district;
                               // Refresh dashboard from backend to reflect DB state
                               try {
                                 const { dashboard } = await import("../services/listings");
                                 const d = await dashboard();
                                 setStats({ total_listings: d.total_listings, available: d.available, reserved: d.reserved, draft: d.draft });
-                                setListings(
-                                  d.listings.map((l: any) => ({
-                                    id: String(l.id),
-                                    image: "https://images.unsplash.com/photo-1515263487990-61b07816b324",
-                                    price: Number(l.price),
-                                    title: l.title,
-                                    location: l.district || label,
-                                    description: l.description || "",
-                                    type: l.type || "",
-                                    femaleOnly: !!l.female_only,
-                                    roommatesAllowed: !!l.roommates_allowed,
-                                    studentDiscount: !!l.student_discount,
-                                    status: l.status,
-                                    locationLink: l.location_link || "",
-                                    bedrooms: l.bedrooms ?? null,
-                                    bathrooms: l.bathrooms ?? null,
-                                    area: l.area ?? null,
-                                    amenities: getAmenitiesForListing(l.id),
-                                  }))
+                                const mapped = await Promise.all(
+                                  d.listings.map(async (l: any) => {
+                                    let imageUrl = (Array.isArray(l.images) && l.images.length) ? (l.images.find((i: any) => i.is_primary)?.url || l.images[0]?.url) : "https://images.unsplash.com/photo-1515263487990-61b07816b324";
+                                    if (!(Array.isArray(l.images) && l.images.length)) {
+                                      try {
+                                        const imgs = await listImagesForListing(l.id);
+                                        imageUrl = imgs?.[0]?.url || imageUrl;
+                                      } catch (_) {}
+                                    }
+                                    return {
+                                      id: String(l.id),
+                                      image: imageUrl,
+                                      price: Number(l.price),
+                                      title: l.title,
+                                      location: l.district || label,
+                                      description: l.description || "",
+                                      type: l.type || "",
+                                      femaleOnly: !!l.female_only,
+                                      roommatesAllowed: !!l.roommates_allowed,
+                                      studentDiscount: !!l.student_discount,
+                                      status: l.status,
+                                      locationLink: l.location_link || "",
+                                      bedrooms: l.bedrooms ?? null,
+                                      bathrooms: l.bathrooms ?? null,
+                                      area: l.area ?? null,
+                                      amenities: getAmenitiesForListing(l.id),
+                                    };
+                                  })
                                 );
+                                setListings(mapped);
                               } catch (_) {
-                                setListings((prev) => [{ id: String(created.id), image: "https://images.unsplash.com/photo-1515263487990-61b07816b324", price: created.price, title: created.title, location: label, roommatesAllowed, type: typeValue, status: statusValue, femaleOnly, studentDiscount, amenities }, ...prev]);
+                                setListings((prev) => [{ id: String(created.id), image: firstUploadedUrl || "https://images.unsplash.com/photo-1515263487990-61b07816b324", price: created.price, title: created.title, location: label, roommatesAllowed, type: typeValue, status: statusValue, femaleOnly, studentDiscount, amenities }, ...prev]);
                               }
                             } catch (e: any) {
                               // Show detailed backend errors
@@ -520,7 +635,10 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                       }}>Publish Listing</Button>
                       <Button
                         variant="outline"
-                        onClick={() => setShowNewListing(false)}
+                        onClick={() => {
+                          setShowNewListing(false);
+                          resetNewListingForm();
+                        }}
                       >
                         Cancel
                       </Button>
@@ -652,34 +770,62 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                                 bathrooms: bathrooms === "" ? undefined : Number(bathrooms),
                                 area: area === "" ? undefined : Number(area),
                               });
+                              // Upload photos if any selected
+                              let firstUploadedUrl: string | undefined;
+                              if (photoFiles.length > 0) {
+                                try {
+                                  setUploadProgress(10);
+                                  const res = await bulkUploadImages(created.id, photoFiles, (p) => setUploadProgress(p));
+                                  firstUploadedUrl = (Array.isArray(res.images) && res.images.length) ? (res.images.find((i: any) => i.is_primary)?.url || res.images[0]?.url) : undefined;
+                                  setUploadProgress(100);
+                                } catch (err: any) {
+                                  const msg = err?.response?.data?.images || err?.message || "Failed to upload images.";
+                                  setPhotoError(typeof msg === "string" ? msg : JSON.stringify(msg));
+                                }
+                              }
+                              // Reset photo selection
+                              setPhotoFiles([]);
+                              setPhotoPreviews([]);
+                              setUploadProgress(0);
+                              setPhotoError(null);
                               setShowNewListing(false);
                               const label = districtOptions.find((o) => o.value === districtValue)?.label || created.district;
                               try {
                                 const { dashboard } = await import("../services/listings");
                                 const d = await dashboard();
                                 setStats({ total_listings: d.total_listings, available: d.available, reserved: d.reserved, draft: d.draft });
-                                setListings(
-                                  d.listings.map((l: any) => ({
-                                    id: String(l.id),
-                                    image: "https://images.unsplash.com/photo-1515263487990-61b07816b324",
-                                    price: Number(l.price),
-                                    title: l.title,
-                                    location: l.district || label,
-                                    description: l.description || "",
-                                    type: l.type || "",
-                                    femaleOnly: !!l.female_only,
-                                    roommatesAllowed: !!l.roommates_allowed,
-                                    studentDiscount: !!l.student_discount,
-                                    status: l.status,
-                                    locationLink: l.location_link || "",
-                                    bedrooms: l.bedrooms ?? null,
-                                    bathrooms: l.bathrooms ?? null,
-                                    area: l.area ?? null,
-                                    amenities: l.amenities ?? [],
-                                  }))
+                                const mapped = await Promise.all(
+                                  d.listings.map(async (l: any) => {
+                                    let imageUrl = (Array.isArray(l.images) && l.images.length) ? (l.images.find((i: any) => i.is_primary)?.url || l.images[0]?.url) : "https://images.unsplash.com/photo-1515263487990-61b07816b324";
+                                    if (!(Array.isArray(l.images) && l.images.length)) {
+                                      try {
+                                        const imgs = await listImagesForListing(l.id);
+                                        imageUrl = imgs?.[0]?.url || imageUrl;
+                                      } catch (_) {}
+                                    }
+                                    return {
+                                      id: String(l.id),
+                                      image: imageUrl,
+                                      price: Number(l.price),
+                                      title: l.title,
+                                      location: l.district || label,
+                                      description: l.description || "",
+                                      type: l.type || "",
+                                      femaleOnly: !!l.female_only,
+                                      roommatesAllowed: !!l.roommates_allowed,
+                                      studentDiscount: !!l.student_discount,
+                                      status: l.status,
+                                      locationLink: l.location_link || "",
+                                      bedrooms: l.bedrooms ?? null,
+                                      bathrooms: l.bathrooms ?? null,
+                                      area: l.area ?? null,
+                                      amenities: l.amenities ?? [],
+                                    };
+                                  })
                                 );
+                                setListings(mapped);
                               } catch (_) {
-                                setListings((prev) => [{ id: String(created.id), image: "https://images.unsplash.com/photo-1515263487990-61b07816b324", price: created.price, title: created.title, location: label, roommatesAllowed, type: typeValue, status: statusValue, femaleOnly, studentDiscount, amenities }, ...prev]);
+                                setListings((prev) => [{ id: String(created.id), image: firstUploadedUrl || "https://images.unsplash.com/photo-1515263487990-61b07816b324", price: created.price, title: created.title, location: label, roommatesAllowed, type: typeValue, status: statusValue, femaleOnly, studentDiscount, amenities }, ...prev]);
                               }
                             } catch (e: any) {
                               let msg = "Failed to publish listing.";
@@ -690,14 +836,14 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                                   const parts: string[] = [];
                                   for (const [key, val] of Object.entries(data)) {
                                     if (Array.isArray(val)) parts.push(`${key}: ${val.join(", ")}`);
-                                    else if (typeof val === "string") parts.push(`${key}: ${val}`);
+                                    else if (typeof val === "string") parts.push(`${key}: ${String(val)}`);
                                     else {
                                       try { parts.push(`${key}: ${JSON.stringify(val)}`); } catch {}
                                     }
                                   }
                                   if (parts.length) msg = parts.join("\n");
                                 }
-                              } else if (e?.message) { msg = e.message; }
+                              } else if (e?.message) { msg = String(e.message); }
                               setFormError(msg);
                             } finally {
                               setPublishing(false);
@@ -726,13 +872,14 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                   {listings.length > 0 && listings.map((listing) => (
                     <div
                       key={listing.id}
-                      className={`flex items-center gap-4 p-4 border rounded-lg hover:shadow-md transition-shadow ${
+                      className={`flex items-start gap-4 p-4 border rounded-lg hover:shadow-md transition-shadow ${
                         listing.status === "RESERVED" ? "bg-red-600/15 border-red-700" : "border-border"
                       }`}
                     >
-                      <img
+                      <ImageWithFallback
                         src={listing.image}
-                        alt={listing.title}
+                        alt=""
+                        data-cloudinary-transform="c_fill,w_320,dpr_auto"
                         className="w-24 h-20 sm:w-28 sm:h-24 md:w-32 md:h-24 object-cover rounded-lg cursor-pointer"
                         onClick={() => onNavigate("listing", String(listing.id))}
                       />
@@ -752,29 +899,27 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                           {listing.bathrooms != null && <span>{listing.bathrooms} Bath</span>}
                           {listing.area != null && <span>{listing.area} m²</span>}
                         </div>
-                        <div className="flex items-center gap-2 mb-2">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
                           {listing.type && (
-                            <Badge className={
-                              ((listing.type || "").toUpperCase()) === "APARTMENT"
-                                ? "bg-indigo-600 text-white hover:bg-indigo-700"
-                                : ((listing.type || "").toUpperCase()) === "STUDIO"
-                                ? "bg-cyan-600 text-white hover:bg-cyan-700"
-                                : "bg-gray-600 text-white hover:bg-gray-700"
-                            }>
+                            <Badge variant="type">
                               {listing.type}
                             </Badge>
                           )}
                           {listing.femaleOnly && <Badge className="bg-purple-600 text-white hover:bg-purple-700">Female only</Badge>}
-                          {listing.roommatesAllowed && <Badge className="bg-yellow-600 text-white hover:bg-yellow-700">Roommates allowed</Badge>}
+                          {listing.roommatesAllowed && <Badge variant="warning">Roommates allowed</Badge>}
                           {listing.studentDiscount && <Badge className="bg-blue-600 text-white hover:bg-blue-700">Student discount</Badge>}
                           {listing.status && (
-                            <Badge className={
-                              listing.status === "AVAILABLE"
-                                ? "bg-green-600 text-white hover:bg-green-700"
-                              : listing.status === "RESERVED"
-                                ? "bg-red-600 text-white hover:bg-red-700"
-                                : "bg-gray-600 text-white hover:bg-gray-700"
-                            }>
+                            <Badge
+                              variant={
+                                listing.status === "AVAILABLE"
+                                  ? "success"
+                                  : listing.status === "RESERVED"
+                                  ? "danger"
+                                  : listing.status === "DRAFT"
+                                  ? "gray"
+                                  : "secondary"
+                              }
+                            >
                               {listing.status}
                             </Badge>
                           )}
@@ -803,7 +948,7 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                           </a>
                         )}
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-shrink-0 self-start">
                         <Button
                           variant="outline"
                           size="icon"
@@ -850,45 +995,47 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
 
       {/* Edit Listing Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[720px] md:max-w-[820px] h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Edit Listing</DialogTitle>
           </DialogHeader>
           {editingListing && (
-            <div className="space-y-6">
-              <Tabs defaultValue="details">
-                <TabsList className="mb-4">
-                  <TabsTrigger value="details">Details</TabsTrigger>
-                  <TabsTrigger value="amenities">Amenities</TabsTrigger>
+            <div className="space-y-3 flex-1 overflow-y-auto">
+              <Tabs defaultValue="details" className="min-h-[65vh]">
+                <TabsList className="mb-4 h-11 p-1 rounded-xl">
+                  <TabsTrigger value="details" className="h-10 px-3 text-base">Details</TabsTrigger>
+                  <TabsTrigger value="amenities" className="h-10 px-3 text-base">Amenities</TabsTrigger>
                 </TabsList>
                 <TabsContent value="details">
-              <div className="grid md:grid-cols-2 gap-6">
+              <div className="grid md:grid-cols-2 gap-2">
                 <div>
-                  <Label htmlFor="edit_title">Property Title</Label>
+                  <Label htmlFor="edit_title" className="text-xs">Property Title</Label>
                   <Input
                     id="edit_title"
                     defaultValue={editingListing.title}
+                    className="h-7 px-2 text-sm max-w-md"
                     onChange={(e) => (editingListing.title = e.target.value)}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="edit_price">Monthly Rent (SAR)</Label>
+                  <Label htmlFor="edit_price" className="text-xs">Monthly Rent (SAR)</Label>
                   <Input
                     id="edit_price"
                     type="number"
                     defaultValue={editingListing.price}
+                    className="h-7 px-2 text-sm"
                     onChange={(e) => (editingListing.price = Number(e.target.value))}
                   />
                 </div>
               </div>
-              <div className="grid md:grid-cols-2 gap-6">
+              <div className="grid md:grid-cols-2 gap-2">
                 <div>
                   <Label>District</Label>
                   <Select
                     value={editingListing.location || ""}
                     onValueChange={(v: string) => (editingListing.location = v)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger size="sm" className="h-7 text-sm">
                       <SelectValue placeholder="Select" />
                     </SelectTrigger>
                     <SelectContent>
@@ -901,31 +1048,33 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="edit_location_link">Location Link</Label>
+                  <Label htmlFor="edit_location_link" className="text-xs">Location Link</Label>
                   <Input
                     id="edit_location_link"
                     type="url"
                     defaultValue={editingListing.locationLink}
+                    className="h-7 px-2 text-sm"
                     onChange={(e) => (editingListing.locationLink = e.target.value)}
                   />
                 </div>
               </div>
               <div>
-                <Label htmlFor="edit_description">Description</Label>
+                <Label htmlFor="edit_description" className="text-xs">Description</Label>
                 <Textarea
                   id="edit_description"
                   defaultValue={editingListing.description || ""}
+                  className="h-20 text-sm"
                   onChange={(e) => (editingListing.description = e.target.value)}
                 />
               </div>
-              <div className="grid md:grid-cols-3 gap-6">
+              <div className="grid md:grid-cols-3 gap-2">
                 <div>
-                  <Label>ID Type</Label>
+                  <Label className="text-xs">ID Type</Label>
                   <Select
                     value={editingListing.idType || ""}
                     onValueChange={(v: "National_ID" | "Resident_ID") => setEditingListing((prev: any) => ({ ...prev, idType: v }))}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger size="sm" className="h-7 text-sm max-w-md">
                       <SelectValue placeholder="Select ID Type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -935,60 +1084,65 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="edit_id_number">ID Number</Label>
+                  <Label htmlFor="edit_id_number" className="text-xs">ID Number</Label>
                   <Input
                     id="edit_id_number"
                     inputMode="numeric"
                     value={editingListing.idNumber || ""}
+                    className="h-7 px-2 text-sm"
                     onChange={(e) => setEditingListing((prev: any) => ({ ...prev, idNumber: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="edit_deed_number">Deed Number</Label>
+                  <Label htmlFor="edit_deed_number" className="text-xs">Deed Number</Label>
                   <Input
                     id="edit_deed_number"
                     inputMode="numeric"
                     value={editingListing.deedNumber || ""}
+                    className="h-7 px-2 text-sm"
                     onChange={(e) => setEditingListing((prev: any) => ({ ...prev, deedNumber: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
                   />
                 </div>
               </div>
-              <div className="grid md:grid-cols-3 gap-6">
+              <div className="grid md:grid-cols-3 gap-2">
                 <div>
-                  <Label htmlFor="edit_bedrooms">Bedrooms</Label>
+                  <Label htmlFor="edit_bedrooms" className="text-xs">Bedrooms</Label>
                   <Input
                     id="edit_bedrooms"
                     type="number"
                     defaultValue={editingListing.bedrooms ?? ""}
+                    className="h-7 px-2 text-sm"
                     onChange={(e) => (editingListing.bedrooms = Number(e.target.value))}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="edit_bathrooms">Bathrooms</Label>
+                  <Label htmlFor="edit_bathrooms" className="text-xs">Bathrooms</Label>
                   <Input
                     id="edit_bathrooms"
                     type="number"
                     defaultValue={editingListing.bathrooms ?? ""}
+                    className="h-7 px-2 text-sm"
                     onChange={(e) => (editingListing.bathrooms = Number(e.target.value))}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="edit_area">Area (m²)</Label>
+                  <Label htmlFor="edit_area" className="text-xs">Area (m²)</Label>
                   <Input
                     id="edit_area"
                     type="number"
                     defaultValue={editingListing.area ?? ""}
+                    className="h-7 px-2 text-sm"
                     onChange={(e) => (editingListing.area = Number(e.target.value))}
                   />
                 </div>
               </div>
               <div>
-                <Label>Property Type</Label>
+                <Label className="text-xs">Property Type</Label>
                 <Select
                   value={editingListing.type || "APARTMENT"}
                   onValueChange={(v: "APARTMENT" | "STUDIO" | "OTHER") => setEditingListing((prev: any) => ({ ...prev, type: v }))}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger size="sm" className="h-7 text-sm max-w-md">
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1073,8 +1227,8 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                         />
                         <Input
                           placeholder="Symbol (emoji or short text)"
-                          onChange={(e) => setAmenitySymbol(e.target.value.slice(0, 6))}
                           value={amenitySymbol}
+                          onChange={(e) => setAmenitySymbol(e.target.value.slice(0, 6))}
                         />
                       </div>
                       <div className="flex flex-wrap gap-2">
@@ -1127,12 +1281,12 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
               </TabsContent>
               </Tabs>
               <div>
-                <Label>Status</Label>
+                <Label className="text-xs">Status</Label>
                 <Select
                   value={editingListing.status || "DRAFT"}
                   onValueChange={(v: "DRAFT" | "AVAILABLE" | "RESERVED") => setEditingListing((prev: any) => ({ ...prev, status: v }))}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger size="sm" className="h-7 text-sm">
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1250,3 +1404,5 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
     </div>
   );
 }
+
+

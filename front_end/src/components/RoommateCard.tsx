@@ -34,7 +34,15 @@ export function RoommateCard({
         <div className="flex items-start gap-4">
           <Avatar className="w-16 h-16">
             <AvatarImage src={avatar} alt={name} />
-            <AvatarFallback>{name.charAt(0)}</AvatarFallback>
+            <AvatarFallback>
+              {(() => {
+                const parts = (name || "").trim().split(/\s+/).filter(Boolean);
+                const f = parts[0]?.[0] || "";
+                const l = parts.length > 1 ? parts[parts.length - 1]?.[0] || "" : "";
+                const pair = (f + l).toUpperCase();
+                return pair || "US";
+              })()}
+            </AvatarFallback>
           </Avatar>
 
           <div className="flex-1">

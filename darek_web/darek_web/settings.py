@@ -11,50 +11,61 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from dotenv import load_dotenv  # Load .env locally
-load_dotenv()  # This loads .env into os.environ
-
+load_dotenv()
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
 import os
 from corsheaders.defaults import default_headers
 from pathlib import Path
 import dj_database_url  # For parsing DATABASE_URL in prod
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# Build paths inside the project
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
-# Prefer loading from environment (.env in dev). In non-debug, require it.
-SECRET_KEY = os.environ.get('SECRET_KEY')
+# ==============================
+# Security & Debug
+# ==============================
+SECRET_KEY = os.environ.get("SECRET_KEY")
 if not SECRET_KEY:
-    # Use a deterministic dev-only fallback when DEBUG is true via env
-    if os.environ.get('DEBUG', 'True') == 'True':
-        SECRET_KEY = 'django-insecure-dev-only'
+    if os.environ.get("DEBUG", "True") == "True":
+        SECRET_KEY = "django-insecure-dev-only"
     else:
-        raise RuntimeError('SECRET_KEY is not set. Provide it via environment.')
+        raise RuntimeError("SECRET_KEY is not set. Provide it via environment.")
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG', 'True') == 'True'  # Set to False in prod env
+DEBUG = os.environ.get("DEBUG", "True") == "True"
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')  # Comma-separated in env; use '*' initially for Render
-
-# Application definition
+# ==============================
+# Installed Apps
+# ==============================
 INSTALLED_APPS = [
-    'django.contrib.admin', 'django.contrib.auth', 'django.contrib.contenttypes',
-    'django.contrib.sessions', 'django.contrib.messages', 'django.contrib.staticfiles',
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
     # third-party
     "rest_framework",
     "django_filters",
     "corsheaders",
     "drf_yasg",
+    "cloudinary",
+    "cloudinary_storage",
     # project apps
-    'users', 'listings', 'messaging', 'reviews', 'roommates',
-    # Add 'whitenoise.runserver_nostatic' if using Whitenoise for static files in dev too (optional)
+    "users",
+    "listings",
+    "messaging",
+    "reviews",
+    "roommates",
 ]
 
-AUTH_USER_MODEL = 'users.User'  # tell Django to use your custom model
+AUTH_USER_MODEL = "users.User"
 
+# ==============================
+# DRF / Swagger
+# ==============================
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -64,7 +75,6 @@ REST_FRAMEWORK = {
     ],
 }
 
-# Make Swagger show a JWT bearer input at the top-right
 SWAGGER_SETTINGS = {
     "USE_SESSION_AUTH": False,
     "SECURITY_DEFINITIONS": {
@@ -75,163 +85,182 @@ SWAGGER_SETTINGS = {
             "description": 'JWT Authorization header using the Bearer scheme. Example: "Bearer <token>"',
         }
     },
-    # Optional UX tweaks
     "DOC_EXPANSION": "none",
     "DEFAULT_MODEL_RENDERING": "example",
 }
 
+# ==============================
+# Middleware
+# ==============================
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # Add this after SecurityMiddleware for static files
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = 'darek_web.urls'
+ROOT_URLCONF = "darek_web.urls"
 
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
+# ==============================
+# Email
+# ==============================
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')  # From .env or prod env
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')  # App password from Google
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL')
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD")
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL")
 
-# Frontend URL used in emails/links
-FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://127.0.0.1:5173')
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://127.0.0.1:5173")
+VERIFICATION_BASE_URL = "http://127.0.0.1:8000"
 
-# Base URL for email verification links (backend port 8000)
-VERIFICATION_BASE_URL = 'http://127.0.0.1:8000'
-
-# CORS configuration (development-friendly)
-# In DEBUG, allow all origins so Vite can auto-pick ports (e.g., 3002).
-# In non-debug, restrict to explicit origins.
+# ==============================
+# CORS
+# ==============================
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 CORS_ALLOWED_ORIGINS = [
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    'http://localhost:3001',
-    'http://127.0.0.1:3001',
-    # Add common fallback ports used by dev servers
-    'http://localhost:3002',
-    'http://127.0.0.1:3002',
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
+    "http://localhost:3002",
+    "http://127.0.0.1:3002",
 ]
 CORS_ALLOW_CREDENTIALS = True
-# Ensure common headers are allowed for preflight
-CORS_ALLOW_HEADERS = list(default_headers) + [
-    'authorization',
-    'content-type',
-]
+CORS_ALLOW_HEADERS = list(default_headers) + ["authorization", "content-type"]
 
+# ==============================
+# Templates
+# ==============================
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [BASE_DIR / "templates"],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = 'darek_web.wsgi.application'
+WSGI_APPLICATION = "darek_web.wsgi.application"
 
+# ==============================
 # Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-# Database configuration
-# Priority: 1) DATABASE_URL, 2) discrete DB_* env vars, 3) SQLite in DEBUG
-_db_url = os.environ.get('DATABASE_URL')
+# ==============================
+_db_url = os.environ.get("DATABASE_URL")
 if _db_url:
     DATABASES = {
-        'default': dj_database_url.config(
-            default=_db_url,
-            conn_max_age=600,
-        )
+        "default": dj_database_url.config(default=_db_url, conn_max_age=600),
     }
 else:
-    _db_name = os.environ.get('DB_NAME')
-    _db_user = os.environ.get('DB_USER')
-    _db_password = os.environ.get('DB_PASSWORD')
-    _db_host = os.environ.get('DB_HOST', '127.0.0.1')
-    _db_port = os.environ.get('DB_PORT', '5432')
+    _db_name = os.environ.get("DB_NAME")
+    _db_user = os.environ.get("DB_USER")
+    _db_password = os.environ.get("DB_PASSWORD")
+    _db_host = os.environ.get("DB_HOST", "127.0.0.1")
+    _db_port = os.environ.get("DB_PORT", "5432")
     if _db_name and _db_user:
         DATABASES = {
-            'default': {
-                'ENGINE': 'django.db.backends.postgresql',
-                'NAME': _db_name,
-                'USER': _db_user,
-                'PASSWORD': _db_password,
-                'HOST': _db_host,
-                'PORT': _db_port,
-            }
-        }
-    elif os.environ.get('DEBUG', 'True') == 'True':
-        DATABASES = {
-            'default': {
-                'ENGINE': 'django.db.backends.sqlite3',
-                'NAME': BASE_DIR / 'db.sqlite3',
+            "default": {
+                "ENGINE": "django.db.backends.postgresql",
+                "NAME": _db_name,
+                "USER": _db_user,
+                "PASSWORD": _db_password,
+                "HOST": _db_host,
+                "PORT": _db_port,
             }
         }
     else:
-        raise RuntimeError('Database configuration missing. Set DATABASE_URL or DB_* env vars.')
+        raise RuntimeError(
+            "Database configuration missing. Set DATABASE_URL or DB_* env vars."
+        )
 
-# Password validation
-# https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
+# ==============================
+# Password Validation
+# ==============================
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-# Internationalization
-# https://docs.djangoproject.com/en/5.2/topics/i18n/
-LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'Asia/Riyadh'
+# ==============================
+# i18n / Timezone
+# ==============================
+LANGUAGE_CODE = "en-us"
+TIME_ZONE = "Asia/Riyadh"
 USE_I18N = True
 USE_TZ = True
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
-STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'  # Where collectstatic will dump files
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'  # Efficient compression
+# ==============================
+# Static & Media (Cloudinary)
+# ==============================
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+MEDIA_URL = "/media/"
 
-# Wathq API Key
-WATHQ_API_KEY = os.environ.get('WATHQ_API_KEY')
+# Cloudinary credentials
+CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUDINARY_CLOUD_NAME")
+CLOUDINARY_API_KEY = os.environ.get("CLOUDINARY_API_KEY")
+CLOUDINARY_API_SECRET = os.environ.get("CLOUDINARY_API_SECRET")
 
-# Twilio API Key
-TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID')  # From Twilio dashboard
-TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN')     # From Twilio dashboard (used for backend API calls)
-TWILIO_API_KEY_SID = os.environ.get('TWILIO_API_KEY_SID')  # From the API key you created
-TWILIO_API_SECRET = os.environ.get('TWILIO_API_SECRET')     # From the API key
-TWILIO_CONVERSATIONS_SERVICE_SID = os.environ.get('TWILIO_CONVERSATIONS_SERVICE_SID')  # From the Conversations Service in dashboard
+if not all([CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET]):
+    raise RuntimeError("Cloudinary credentials are missing. Check .env file.")
 
-# Security extras for prod
-SECURE_SSL_REDIRECT = not DEBUG  # Redirect HTTP to HTTPS (Render handles SSL)
+cloudinary.config(
+    cloud_name=CLOUDINARY_CLOUD_NAME,
+    api_key=CLOUDINARY_API_KEY,
+    api_secret=CLOUDINARY_API_SECRET,
+)
+
+CLOUDINARY_STORAGE = {
+    "CLOUD_NAME": CLOUDINARY_CLOUD_NAME,
+    "API_KEY": CLOUDINARY_API_KEY,
+    "API_SECRET": CLOUDINARY_API_SECRET,
+}
+
+STORAGES = {
+    "default": {  # All user uploads -> Cloudinary
+        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+    },
+    "staticfiles": {  # Whitenoise handles static files
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
+
+# ==============================
+# Primary Key / Misc
+# ==============================
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# ==============================
+# API Keys
+# ==============================
+WATHQ_API_KEY = os.environ.get("WATHQ_API_KEY")
+TWILIO_ACCOUNT_SID = os.environ.get("TWILIO_ACCOUNT_SID")
+TWILIO_AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN")
+TWILIO_API_KEY_SID = os.environ.get("TWILIO_API_KEY_SID")
+TWILIO_API_SECRET = os.environ.get("TWILIO_API_SECRET")
+TWILIO_CONVERSATIONS_SERVICE_SID = os.environ.get("TWILIO_CONVERSATIONS_SERVICE_SID")
+
+# ==============================
+# Security (Prod)
+# ==============================
+SECURE_SSL_REDIRECT = not DEBUG
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG

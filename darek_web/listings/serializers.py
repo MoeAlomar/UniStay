@@ -1,6 +1,6 @@
 # listings/serializers.py (Updated)
 from rest_framework import serializers
-from .models import Listing
+from .models import Listing, ListingImage
 from django.contrib.auth import get_user_model
 from django.conf import settings
 from users.serializers import UserSerializer
@@ -16,6 +16,7 @@ class ListingSerializer(serializers.ModelSerializer):
         help_text="Must be a user with the Landlord role."
     )
     owner_details = UserSerializer(source='owner', read_only=True)
+    images = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Listing
@@ -23,7 +24,7 @@ class ListingSerializer(serializers.ModelSerializer):
             'id', 'owner', 'owner_details', 'id_type', 'owner_identification_id',
             'deed_number', 'title', 'description', 'price', 'type', 'female_only',
             'roommates_allowed', 'student_discount', 'status', 'district',
-            'bedrooms', 'bathrooms', 'area', 'location_link',
+            'bedrooms', 'bathrooms', 'area', 'location_link', 'images',
             'created_at', 'modified_at'
         ]
         read_only_fields = ['id', 'owner', 'owner_details', 'created_at', 'modified_at']
@@ -155,3 +156,26 @@ class ListingSerializer(serializers.ModelSerializer):
             logger.error(f"Wathq API error: {str(e)}")
             raise serializers.ValidationError("Wathq service is unavailable. Please try again later.")
         return data
+
+    def get_images(self, obj):
+        # Nested serializer representation limited to 10 images
+        try:
+            qs = obj.images.all()[:10]
+        except Exception:
+            qs = []
+        return ListingImageSerializer(qs, many=True, context=self.context).data
+
+
+class ListingImageSerializer(serializers.ModelSerializer):
+    url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ListingImage
+        fields = ["id", "url", "is_primary"]
+        read_only_fields = ["id", "url"]
+
+    def get_url(self, obj):
+        try:
+            return obj.image.url if obj.image else None
+        except Exception:
+            return None

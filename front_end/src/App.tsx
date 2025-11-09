@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { NavigationHeader } from "./components/NavigationHeader";
 import { LandingPage } from "./components/LandingPage";
 import { SearchResults } from "./components/SearchResults";
+import { FavoritesPage } from "./components/FavoritesPage";
 import { ListingDetails } from "./components/ListingDetails";
 import { Messages } from "./components/Messages";
 import { RoommateMatching } from "./components/RoommateMatching";
@@ -16,6 +17,7 @@ type Page =
   | "landing"
   | "search"
   | "listing"
+  | "favorites"
   | "messages"
   | "roommate"
   | "dashboard"
@@ -30,6 +32,18 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userType, setUserType] = useState<"student" | "landlord">("student");
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  // Deep-link support: if URL has ?listing=ID, open ListingDetails directly
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get("listing");
+      if (id) {
+        setSelectedPropertyId(id);
+        setCurrentPage("listing");
+      }
+    } catch (_) {}
+  }, []);
 
   const handleNavigate = (page: string, propertyId?: string) => {
     setCurrentPage(page as Page);
@@ -48,6 +62,18 @@ export default function App() {
 
     // Scroll to top on navigation
     window.scrollTo(0, 0);
+
+    // Reflect navigation in URL for easy sharing
+    try {
+      if ((page as Page) === "listing" && (propertyId || selectedPropertyId)) {
+        const id = propertyId || selectedPropertyId;
+        const url = `/?listing=${id}`;
+        window.history.pushState(null, "", url);
+      } else {
+        const clean = window.location.pathname || "/";
+        window.history.pushState(null, "", clean);
+      }
+    } catch (_) {}
   };
 
   // Sync auth state with stored tokens and fetch user profile for role
@@ -97,6 +123,7 @@ export default function App() {
         />
       )}
       {currentPage === "search" && <SearchResults onNavigate={handleNavigate} />}
+      {currentPage === "favorites" && <FavoritesPage onNavigate={handleNavigate} />}
       {currentPage === "listing" && (
         <ListingDetails
           propertyId={selectedPropertyId}
