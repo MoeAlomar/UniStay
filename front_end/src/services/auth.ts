@@ -58,6 +58,16 @@ export async function profile() {
   return user;
 }
 
+export async function getUserById(userId: number) {
+  const { data } = await api.get(`/users/${userId}/`);
+  return normalizeUser(data);
+}
+
+export async function getUserByUsername(username: string) {
+  const { data } = await api.get(`/users/by-username/${encodeURIComponent(username)}/`);
+  return normalizeUser(data);
+}
+
 export async function updateAvatar(file: File) {
   const form = new FormData();
   form.append("avatar", file);

@@ -135,7 +135,7 @@ export function UserProfileDialog({ user, open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl md:max-w-2xl lg:max-w-3xl">
+      <DialogContent className="sm:max-w-xl md:max-w-2xl lg:max-w-3xl w-auto max-w-[680px] h-auto max-h-[90vh] flex flex-col border-2 border-border shadow-xl">
         <DialogHeader>
           <DialogTitle>Profile</DialogTitle>
         </DialogHeader>
@@ -157,12 +157,12 @@ export function UserProfileDialog({ user, open, onOpenChange }: Props) {
                     <Badge variant="success">Verified</Badge>
                   )}
                 </div>
-                <div className="text-sm text-muted-foreground">{user.email}</div>
+                <div className="text-sm text-muted-foreground">@{user.username}</div>
                 <div className="text-sm text-muted-foreground">Role: {user.role}</div>
               </div>
             </div>
 
-            <div>
+            <div className="flex-1 overflow-y-auto">
               <h3 className="mb-2 text-foreground">Reviews</h3>
               {loading ? (
                 <div className="space-y-2">
@@ -258,7 +258,7 @@ export function UserProfileDialog({ user, open, onOpenChange }: Props) {
                     placeholder="Share your experience..."
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
-                    rows={4}
+                    rows={5}
                   />
                   <div className="flex justify-end mt-2 gap-2">
                     <Button variant="outline" onClick={() => { setIsEditing(false); setRating(0); setHoverRating(0); setComment(""); }}>

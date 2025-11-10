@@ -1,10 +1,20 @@
 // frontend/src/services/messaging.ts
 import { api } from "./api";
-import {
+// Type-only import to avoid evaluating the SDK at build time
+import type {
   Client as ConversationsClient,
   Conversation,
   Message,
 } from "@twilio/conversations";
+
+type TwilioModule = typeof import("@twilio/conversations");
+let conversationsModulePromise: Promise<TwilioModule> | null = null;
+async function loadTwilioModule(): Promise<TwilioModule> {
+  if (!conversationsModulePromise) {
+    conversationsModulePromise = import("@twilio/conversations");
+  }
+  return conversationsModulePromise;
+}
 
 /** ---- REST endpoints (your Django API) ---- */
 export async function twilioToken() {
@@ -50,7 +60,8 @@ let cachedClient: ConversationsClient | null = null;
 
 async function createClient(): Promise<ConversationsClient> {
   const { token } = await twilioToken();
-  const convClient = new ConversationsClient(token);
+  const { Client } = await loadTwilioModule();
+  const convClient = new Client(token);
   cachedClient = convClient;
 
   convClient.on("tokenAboutToExpire", async () => {
