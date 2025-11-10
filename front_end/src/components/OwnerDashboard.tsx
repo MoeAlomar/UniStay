@@ -383,7 +383,7 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
 
                         <div>
                           <Label htmlFor="description">Description</Label>
-                          <Textarea id="description" placeholder="Describe your property..." rows={4} value={description} onChange={(e) => setDescription(e.target.value)} />
+                          <Textarea id="description" placeholder="Describe your property..." rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
                         </div>
 
                         <div className="grid md:grid-cols-3 gap-6">
@@ -677,7 +677,7 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                         <div>
                           <Label>Add custom amenity</Label>
                           <div className="mt-2 space-y-3">
-                            <div className="grid md:grid-cols-2 gap-3">
+                            <div className="grid md:grid-cols-2 gap-2">
                               <Input
                                 placeholder="Amenity title (≤ 30 chars)"
                                 maxLength={30}
@@ -995,17 +995,19 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
 
       {/* Edit Listing Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="sm:max-w-[720px] md:max-w-[820px] h-[85vh] flex flex-col">
+        <DialogContent className="w-[90vw] max-w-[640px] h-[82vh] flex flex-col px-3 py-3">
           <DialogHeader>
             <DialogTitle>Edit Listing</DialogTitle>
           </DialogHeader>
           {editingListing && (
-            <div className="space-y-3 flex-1 overflow-y-auto">
+            <div className="space-y-2 flex-1 overflow-y-auto">
               <Tabs defaultValue="details" className="min-h-[65vh]">
-                <TabsList className="mb-4 h-11 p-1 rounded-xl">
-                  <TabsTrigger value="details" className="h-10 px-3 text-base">Details</TabsTrigger>
-                  <TabsTrigger value="amenities" className="h-10 px-3 text-base">Amenities</TabsTrigger>
-                </TabsList>
+                <div className="max-w-full mx-auto">
+                  <TabsList className="inline-flex h-auto gap-2 rounded-none bg-transparent p-0 mb-4">
+                    <TabsTrigger value="details" className="px-4 py-2 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Details</TabsTrigger>
+                    <TabsTrigger value="amenities" className="px-4 py-2 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Amenities</TabsTrigger>
+                  </TabsList>
+                </div>
                 <TabsContent value="details">
               <div className="grid md:grid-cols-2 gap-2">
                 <div>
@@ -1013,7 +1015,7 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                   <Input
                     id="edit_title"
                     defaultValue={editingListing.title}
-                    className="h-7 px-2 text-sm max-w-md"
+                    className="h-6 px-2 text-sm w-full max-w-xs"
                     onChange={(e) => (editingListing.title = e.target.value)}
                   />
                 </div>
@@ -1023,12 +1025,12 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                     id="edit_price"
                     type="number"
                     defaultValue={editingListing.price}
-                    className="h-7 px-2 text-sm"
+                    className="h-6 px-2 text-sm"
                     onChange={(e) => (editingListing.price = Number(e.target.value))}
                   />
                 </div>
               </div>
-              <div className="grid md:grid-cols-2 gap-2">
+              <div className="grid md:grid-cols-2 gap-3">
                 <div>
                   <Label>District</Label>
                   <Select
@@ -1074,7 +1076,7 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                     value={editingListing.idType || ""}
                     onValueChange={(v: "National_ID" | "Resident_ID") => setEditingListing((prev: any) => ({ ...prev, idType: v }))}
                   >
-                    <SelectTrigger size="sm" className="h-7 text-sm max-w-md">
+                    <SelectTrigger size="sm" className="h-6 text-sm max-w-xs">
                       <SelectValue placeholder="Select ID Type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1104,7 +1106,7 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                   />
                 </div>
               </div>
-              <div className="grid md:grid-cols-3 gap-2">
+              <div className="grid md:grid-cols-3 gap-3">
                 <div>
                   <Label htmlFor="edit_bedrooms" className="text-xs">Bedrooms</Label>
                   <Input
@@ -1152,7 +1154,7 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex items-center justify-between">
+              <div className="grid md:grid-cols-3 gap-3">
                 <div className="flex items-center gap-2">
                   <Switch
                     id="edit_female_only"

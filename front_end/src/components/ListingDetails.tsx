@@ -31,6 +31,7 @@ import { getAmenitiesForListing } from "../services/amenitiesLocal";
 import { Skeleton } from "./ui/skeleton";
 import UserProfileDialog from "./UserProfileDialog";
 import { isFavorite as isFavoriteLocal, toggleFavorite } from "../services/favoritesLocal";
+import { openOrCreateByUserId, sendMessage as sendMessageAPI } from "../services/messaging";
 
 interface ListingDetailsProps {
   propertyId: string;
@@ -50,6 +51,7 @@ export function ListingDetails({ propertyId, onNavigate }: ListingDetailsProps) 
   const [data, setData] = useState<any | null>(null);
   const [districtOptions, setDistrictOptions] = useState<{ value: string; label: string }[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [ownerReviews, setOwnerReviews] = useState<Review[]>([]);
   const [me, setMe] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [showOwnerProfile, setShowOwnerProfile] = useState(false);
@@ -90,6 +92,18 @@ export function ListingDetails({ propertyId, onNavigate }: ListingDetailsProps) 
       } catch (_) {}
     })();
   }, [propertyId]);
+
+  // Fetch reviews for the landlord (owner) to display accurate stats
+  useEffect(() => {
+    (async () => {
+      try {
+        const ownerId = (data?.owner_details?.id as any) ?? (data?.owner as any);
+        if (!ownerId) return;
+        const list = await listReviews({ target_type: "USER", target_id: ownerId });
+        setOwnerReviews(Array.isArray(list) ? list : []);
+      } catch (_) {}
+    })();
+  }, [data]);
 
   useEffect(() => {
     (async () => {
@@ -628,7 +642,19 @@ export function ListingDetails({ propertyId, onNavigate }: ListingDetailsProps) 
                     </div>
                     <div className="flex items-center gap-1">
                       <Star className="w-4 h-4 fill-primary text-primary" />
-                      <span className="text-sm">4.9 (34 reviews)</span>
+                      {(() => {
+                        const count = ownerReviews.length;
+                        const avg = count
+                          ? Math.round(
+                              (ownerReviews.reduce((s, r) => s + (Number((r as any).rating) || 0), 0) / count) * 10
+                            ) / 10
+                          : 0;
+                        return count > 0 ? (
+                          <span className="text-sm">{avg.toFixed(1)} ({count} review{count === 1 ? "" : "s"})</span>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">No reviews yet</span>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -686,9 +712,24 @@ export function ListingDetails({ propertyId, onNavigate }: ListingDetailsProps) 
               </Button>
               <Button
                 className="flex-1"
-                onClick={() => {
-                  setShowContactDialog(false);
-                  onNavigate("messages");
+                onClick={async () => {
+                  try {
+                    const ownerId = (data?.owner_details?.id as any) ?? (data?.owner as any);
+                    const sid = ownerId ? await openOrCreateByUserId(Number(ownerId)) : null;
+                    if (sid && message.trim()) {
+                      await sendMessageAPI(sid, message.trim());
+                    }
+                    setMessage("");
+                    setShowContactDialog(false);
+                    if (sid) {
+                      onNavigate(`messages?conversation=${sid}`);
+                    } else {
+                      onNavigate("messages");
+                    }
+                  } catch (_) {
+                    setShowContactDialog(false);
+                    onNavigate("messages");
+                  }
                 }}
               >
                 Send Message

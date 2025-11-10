@@ -1,7 +1,7 @@
 // frontend/src/components/Messages.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "./ui/card";
-import { Avatar, AvatarFallback } from "./ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { ScrollArea } from "./ui/scroll-area";
@@ -17,6 +17,10 @@ import {
   type Conversation,
   type Message,
 } from "../services/messaging";
+import type { User } from "../services/auth";
+import { getUserById } from "../services/auth";
+import UserProfileDialog from "./UserProfileDialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 
 type UIConversation = {
   id: string;
@@ -34,12 +38,20 @@ function otherParticipantName(
   fallback?: string | null
 ): string {
   const safeFallback = (fallback ?? undefined) as string | undefined;
-  if (attrs?.usernames && myId) {
-    const keys: string[] = Object.keys(attrs.usernames);
-    const otherId = keys.find((k) => k !== myId);
-    if (otherId) {
-      const val = attrs.usernames[otherId];
-      if (typeof val === "string" && val.trim()) return val;
+  const map = attrs?.usernames;
+  if (map && typeof map === "object") {
+    const ids: string[] = Object.keys(map);
+    if (ids.length >= 2) {
+      const names = ids
+        .filter((id) => (myId ? id !== myId : true))
+        .map((id) => String(map[id]))
+        .filter((s) => !!s && s.trim())
+        .join(", ");
+      if (names.trim()) return names;
+    }
+    if (ids.length === 1) {
+      const only = map[ids[0]];
+      if (typeof only === "string" && only.trim()) return only;
     }
   }
   return safeFallback || "Conversation";
@@ -50,10 +62,16 @@ export function Messages() {
   const [selectedSid, setSelectedSid] = useState<string>("");
   const [selectedConversation, setSelectedConversation] =
     useState<Conversation | null>(null);
+  const [convMap, setConvMap] = useState<Map<string, Conversation>>(new Map());
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageText, setMessageText] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [myIdentity, setMyIdentity] = useState<string | undefined>(undefined);
+  const [otherUser, setOtherUser] = useState<User | null>(null);
+  const [showProfile, setShowProfile] = useState(false);
+  const [participants, setParticipants] = useState<Array<{ id: string; name: string; user: User | null }>>([]);
+  const [showParticipants, setShowParticipants] = useState(false);
+  const [profileUser, setProfileUser] = useState<User | null>(null);
 
   // New chat by username
   const [newUsername, setNewUsername] = useState<string>("");
@@ -92,31 +110,22 @@ export function Messages() {
       const items = await listSubscribedConversations();
       if (!mounted) return;
 
+      // Keep a map of sid -> Conversation for lightweight on-demand hydration later
+      const map = new Map<string, Conversation>();
+      for (const c of items) map.set(c.sid, c);
+      setConvMap(map);
+
+      // Initial load: avoid network-heavy per-conversation calls.
+      // Only read attributes for naming; hydrate last message/unread later.
       const uiConvs = await Promise.all(
         items.map(async (c) => {
-          const summary = await c.getMessages(1);
-          const last = summary.items[summary.items.length - 1];
-          const lastBody = last?.body || "";
-          const ts = last?.dateCreated
-            ? last.dateCreated.toLocaleString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })
-            : "";
-
-          let unread = false;
-          try {
-            const count = await c.getUnreadMessagesCount();
-            unread = (count ?? 0) > 0;
-          } catch {}
-
-          const attrs = (await c.getAttributes()) as any;
+          let attrs: any = {};
+          try { attrs = await c.getAttributes(); } catch {}
           const name = otherParticipantName(
             attrs,
             client.user?.identity,
             c.friendlyName
           );
-
           const initials =
             name
               .split(" ")
@@ -129,11 +138,11 @@ export function Messages() {
             id: c.sid,
             name,
             listingTitle: attrs?.listingTitle,
-            lastMessage: lastBody,
-            timestamp: ts,
-            unread,
+            lastMessage: "",
+            timestamp: "",
+            unread: false,
             avatar: initials,
-          };
+          } as UIConversation;
         })
       );
 
@@ -147,19 +156,6 @@ export function Messages() {
 
       // live updates to the list
       const onAdded = async (c: Conversation) => {
-        const summary = await c.getMessages(1);
-        const last = summary.items[summary.items.length - 1];
-        const ts = last?.dateCreated
-          ? last.dateCreated.toLocaleString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })
-          : "";
-        let unread = false;
-        try {
-          const count = await c.getUnreadMessagesCount();
-          unread = (count ?? 0) > 0;
-        } catch {}
         const attrs = (await c.getAttributes()) as any;
         const name = otherParticipantName(
           attrs,
@@ -179,13 +175,14 @@ export function Messages() {
             id: c.sid,
             name,
             listingTitle: attrs?.listingTitle,
-            lastMessage: last?.body || "",
-            timestamp: ts,
-            unread,
+            lastMessage: "",
+            timestamp: "",
+            unread: false,
             avatar: initials,
           },
           ...prev,
         ]);
+        setConvMap((m) => new Map(m).set(c.sid, c));
       };
 
       const onRemoved = (c: Conversation) => {
@@ -213,6 +210,56 @@ export function Messages() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Progressive hydration: fetch last message + unread for first N conversations only,
+  // to reduce initial burst of network calls.
+  const hydrated = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const subset = convList.slice(0, 10); // hydrate top 10 only
+      const tasks = subset
+        .filter((c) => !hydrated.current.has(c.id))
+        .map(async (ui) => {
+          const conv = convMap.get(ui.id);
+          if (!conv) return;
+          try {
+            const summary = await conv.getMessages(1);
+            const last = summary.items[summary.items.length - 1];
+            const ts = last?.dateCreated
+              ? last.dateCreated.toLocaleString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "";
+            let unread = false;
+            try {
+              const count = await conv.getUnreadMessagesCount();
+              unread = (count ?? 0) > 0;
+            } catch {}
+            if (!cancelled) {
+              hydrated.current.add(ui.id);
+              setConvList((prev) =>
+                prev.map((c) =>
+                  c.id === ui.id
+                    ? {
+                        ...c,
+                        lastMessage: last?.body || c.lastMessage,
+                        timestamp: ts || c.timestamp,
+                        unread,
+                      }
+                    : c
+                )
+              );
+            }
+          } catch {}
+        });
+      await Promise.all(tasks);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [convList, convMap]);
 
   /** Load messages when switching conversations */
   useEffect(() => {
@@ -282,6 +329,102 @@ export function Messages() {
       if (unsubscribe) unsubscribe();
     };
   }, [selectedSid]);
+
+  /** Load other participant's user profile for avatars and profile dialog */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        if (!selectedConversation) {
+          setOtherUser(null);
+          return;
+        }
+        const client = await getTwilioClient();
+        const myId = client.user?.identity;
+        const attrs = (await selectedConversation.getAttributes()) as any;
+        let otherId: string | undefined;
+        if (attrs?.usernames && myId) {
+          const keys = Object.keys(attrs.usernames);
+          otherId = keys.find((k) => k !== myId);
+        }
+        if (otherId && !cancelled) {
+          try {
+            const u = await getUserById(Number(otherId));
+            if (!cancelled) setOtherUser(u);
+          } catch (_) {
+            if (!cancelled) setOtherUser(null);
+          }
+        } else {
+          setOtherUser(null);
+        }
+      } catch (_) {
+        if (!cancelled) setOtherUser(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedConversation]);
+
+  /** Load participants for group conversations (and one-to-one for per-message avatars) */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        if (!selectedConversation) {
+          setParticipants([]);
+          return;
+        }
+        const attrs = (await selectedConversation.getAttributes()) as any;
+        const map = attrs?.usernames && typeof attrs.usernames === "object" ? attrs.usernames : {};
+        const ids: string[] = Object.keys(map);
+        if (!ids.length) { setParticipants([]); return; }
+        const results = await Promise.all(ids.map(async (id) => {
+          try {
+            const u = await getUserById(Number(id));
+            return { id, name: String(map[id] || u.username || "User"), user: u };
+          } catch {
+            return { id, name: String(map[id] || "User"), user: null };
+          }
+        }));
+        if (!cancelled) setParticipants(results);
+      } catch {
+        if (!cancelled) setParticipants([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedConversation]);
+
+  const participantsMap = useMemo(() => {
+    const m = new Map<string, { id: string; name: string; user: User | null }>();
+    for (const p of participants) m.set(String(p.id), p);
+    return m;
+  }, [participants]);
+
+  const getInitials = (name: string | undefined) => {
+    const s = (name || "UN").trim();
+    const parts = s.split(/\s+/).filter(Boolean);
+    return (parts[0]?.[0] || "U") + (parts[1]?.[0] || parts[0]?.[1] || "N");
+  };
+
+  function transformAvatar(url?: string | null): string | undefined {
+    const src = typeof url === "string" ? url : undefined;
+    if (!src || !src.includes("res.cloudinary.com") || !src.includes("/image/upload/")) return src;
+    try {
+      const marker = "/image/upload/";
+      const idx = src.indexOf(marker);
+      const before = src.slice(0, idx + marker.length);
+      const after = src.slice(idx + marker.length);
+      const hasTransforms = after[0] !== 'v' && after.includes('/');
+      const transform = "c_fill,w_64,h_64,dpr_auto";
+      if (hasTransforms) {
+        return `${before}f_auto,q_auto,${transform},${after}`;
+      }
+      return `${before}f_auto,q_auto,${transform}/${after}`;
+    } catch {
+      return src;
+    }
+  }
 
   /** Keep read state if tab becomes visible again */
   useEffect(() => {
@@ -423,6 +566,12 @@ export function Messages() {
                     >
                       <div className="flex items-start gap-3">
                         <Avatar>
+                          {(() => {
+                            const other = participants.find((p) => String(p.id) !== String(myIdentity));
+                            return other?.user?.avatar_url ? (
+                              <AvatarImage src={transformAvatar(other.user.avatar_url)} alt={other.name} />
+                            ) : null;
+                          })()}
                           <AvatarFallback>{conversation.avatar}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
@@ -461,15 +610,50 @@ export function Messages() {
             <div className="md:col-span-2 flex flex-col bg-secondary">
               <div className="p-4 bg-card border-b border-border">
                 <div className="flex items-center gap-3">
-                  <Avatar>
-                    <AvatarFallback>
-                      {(activeUIConv?.avatar || "UN").slice(0, 2)}
-                    </AvatarFallback>
-                  </Avatar>
+                  {participants.length > 2 ? (
+                    <div className="flex items-center gap-3">
+                      <Avatar>
+                        <AvatarFallback>
+                          {(activeUIConv?.avatar || "GR").slice(0, 2)}
+                        </AvatarFallback>
+                      </Avatar>
+                    </div>
+                  ) : (
+                    <button type="button" onClick={() => otherUser && setShowProfile(true)} className="flex items-center gap-3">
+                      <Avatar>
+                        {otherUser?.avatar_url ? (
+                          <AvatarImage src={transformAvatar(otherUser.avatar_url)} alt={otherUser?.username || "User"} />
+                        ) : null}
+                        <AvatarFallback>
+                          {(activeUIConv?.avatar || "UN").slice(0, 2)}
+                        </AvatarFallback>
+                      </Avatar>
+                    </button>
+                  )}
                   <div>
-                    <h3 className="text-foreground">
-                      {activeUIConv?.name || "Select a conversation"}
-                    </h3>
+                    {participants.length > 2 ? (
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-foreground">
+                          {(() => {
+                            const clientId = myIdentity;
+                            const names = participants
+                              .filter((p) => (clientId ? String(p.id) !== String(clientId) : true))
+                              .map((p) => p.name)
+                              .join(", ");
+                            return names || activeUIConv?.name || "Group conversation";
+                          })()}
+                        </h3>
+                        <Button variant="outline" size="sm" onClick={() => setShowParticipants(true)}>
+                          Participants
+                        </Button>
+                      </div>
+                    ) : (
+                      <button type="button" className="text-left" onClick={() => otherUser && setShowProfile(true)}>
+                        <h3 className="text-foreground">
+                          {activeUIConv?.name || "Select a conversation"}
+                        </h3>
+                      </button>
+                    )}
                     {activeUIConv?.listingTitle && (
                       <p className="text-sm text-primary">
                         {activeUIConv.listingTitle}
@@ -484,8 +668,26 @@ export function Messages() {
                   {messages.map((m) => (
                     <div
                       key={m.sid}
-                      className={`flex ${isOwn(m) ? "justify-end" : "justify-start"}`}
+                      className={`flex items-start gap-2 ${isOwn(m) ? "justify-end" : "justify-start"}`}
                     >
+                      {!isOwn(m) && (
+                        (() => {
+                          const authorId = String(m.author || "");
+                          const p = participantsMap.get(authorId);
+                          const au = p?.user?.avatar_url;
+                          const initials = getInitials(p?.name);
+                          return (
+                            <button type="button" onClick={() => p?.user && setProfileUser(p.user!)} className="mt-1">
+                              <Avatar className="w-8 h-8">
+                                {au ? (
+                                  <AvatarImage src={transformAvatar(au)} alt={p?.user?.username || p?.name || "User"} />
+                                ) : null}
+                                <AvatarFallback>{initials}</AvatarFallback>
+                              </Avatar>
+                            </button>
+                          );
+                        })()
+                      )}
                       <div className={`max-w-[70%] ${isOwn(m) ? "order-2" : "order-1"}`}>
                         <div
                           className={`rounded-2xl px-4 py-2 ${
@@ -534,6 +736,39 @@ export function Messages() {
             </div>
           </div>
         </Card>
+        {/* Profile dialog for other participant */}
+        <UserProfileDialog user={profileUser || otherUser} open={showProfile || !!profileUser} onOpenChange={(open) => { setShowProfile(open); if (!open) setProfileUser(null); }} />
+        {/* Participants dialog for group conversations */}
+        <Dialog open={showParticipants} onOpenChange={setShowParticipants}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Participants</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              {participants.map((p) => (
+                <button key={p.id} type="button" className="w-full text-left" onClick={() => { if (p.user) { setProfileUser(p.user); setShowProfile(true); } }}>
+                  <div className="flex items-center gap-3 p-2 rounded-md hover:bg-secondary">
+                    <Avatar>
+                      {p.user?.avatar_url ? (
+                        <AvatarImage src={transformAvatar(p.user.avatar_url)} alt={p.user.username || p.name} />
+                      ) : null}
+                      <AvatarFallback>{getInitials(p.name)}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className="text-sm text-foreground">{p.user ? `${p.user.first_name} ${p.user.last_name}`.trim() || p.user.username : p.name}</div>
+                      {p.user?.username && (
+                        <div className="text-xs text-muted-foreground">@{p.user.username}</div>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              ))}
+              {participants.length === 0 && (
+                <div className="text-sm text-muted-foreground">No participants found.</div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
