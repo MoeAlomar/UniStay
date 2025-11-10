@@ -995,18 +995,18 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
 
       {/* Edit Listing Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="sm:max-w-[720px] md:max-w-[820px] h-[85vh] flex flex-col">
+        <DialogContent className="sm:max-w-[820px] md:max-w-[960px] lg:max-w-[1040px] max-h-[90vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle>Edit Listing</DialogTitle>
+            <DialogTitle>Edit Lsiting</DialogTitle>
           </DialogHeader>
           {editingListing && (
-            <div className="space-y-3 flex-1 overflow-y-auto">
-              <Tabs defaultValue="details" className="min-h-[65vh]">
-                <TabsList className="mb-4 h-11 p-1 rounded-xl">
+            <div className="space-y-3 flex-1 overflow-y-auto pr-1">
+              <Tabs defaultValue="details" className="min-h-[70vh] flex flex-col">
+                <TabsList className="mb-4 grid w-full grid-cols-2 gap-2 h-11 p-1 rounded-xl">
                   <TabsTrigger value="details" className="h-10 px-3 text-base">Details</TabsTrigger>
                   <TabsTrigger value="amenities" className="h-10 px-3 text-base">Amenities</TabsTrigger>
                 </TabsList>
-                <TabsContent value="details">
+                <TabsContent value="details" className="space-y-3 overflow-y-auto pr-1">
               <div className="grid md:grid-cols-2 gap-2">
                 <div>
                   <Label htmlFor="edit_title" className="text-xs">Property Title</Label>
@@ -1179,7 +1179,7 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                 </div>
               </div>
               </TabsContent>
-              <TabsContent value="amenities">
+                <TabsContent value="amenities" className="space-y-3 overflow-y-auto pr-1">
               {/* Amenities editor for edit dialog */}
               <div>
                 <Label>Amenities (optional)</Label>
