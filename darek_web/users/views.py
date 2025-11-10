@@ -45,3 +45,16 @@ class VerifyEmailView(generics.GenericAPIView):
             return Response({"detail": "Email verified successfully."}, status=status.HTTP_200_OK)
         else:
             return Response({"detail": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
+
+# New: Public user detail endpoints for fetching other users by id/username
+class PublicUserView(generics.RetrieveAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+
+class UserByUsernameView(generics.RetrieveAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    lookup_field = "username"

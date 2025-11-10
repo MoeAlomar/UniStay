@@ -13,6 +13,7 @@ djangorestframework==3.16.1
 djangorestframework_simplejwt==5.5.1
 cloudinary==1.44.1
 django-cloudinary-storage==0.3.0
+Pillow==10.4.0
 frozenlist==1.8.0
 idna==3.11
 multidict==6.7.0
