@@ -135,15 +135,15 @@ export function UserProfileDialog({ user, open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[860px] md:max-w-4xl min-w-[320px] w-auto h-auto max-h-[85vh] md:max-h-[90vh] flex flex-col border-2 border-border shadow-xl px-6 py-6 lg:max-h-[80vh] overflow-y-auto">
-        <DialogHeader className="mb-4">
+      <DialogContent className="sm:max-w-[900px] md:max-w-5xl lg:max-w-6xl min-w-[320px] w-auto h-auto max-h-[90vh] flex flex-col border-2 border-border shadow-xl px-10 py-8 overflow-y-auto">
+        <DialogHeader className="mb-6">
           <DialogTitle className="text-2xl">Profile</DialogTitle>
         </DialogHeader>
         {!user ? (
           <div className="text-base text-muted-foreground p-4">No user selected.</div>
         ) : (
           <div className="space-y-8">
-            <div className="flex items-center gap-6 md:gap-8 p-4 rounded-lg bg-secondary/30">
+            <div className="flex items-center gap-6 md:gap-8 p-6 rounded-lg bg-secondary/30">
           <Avatar className="w-24 h-24 border-2 border-primary/20">
             {(user?.avatar_url || (user as any)?.avatar) ? (
               <AvatarImage src={transformAvatar((user?.avatar_url || (user as any)?.avatar) as string)} alt={user?.username || "User"} />
@@ -162,38 +162,38 @@ export function UserProfileDialog({ user, open, onOpenChange }: Props) {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto">
-              <h3 className="mb-4 text-lg font-semibold text-foreground">Reviews</h3>
+            <div className="flex-1">
+              <h3 className="mb-6 text-base font-semibold text-foreground">Reviews</h3>
               {loading ? (
                 <div className="space-y-3">
                   <Skeleton className="h-6 w-48" />
                   <Skeleton className="h-20 w-full" />
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-5">
                   {reviews.length === 0 && (
-                    <div className="text-base text-muted-foreground p-4 text-center bg-secondary/20 rounded-lg">
+                    <div className="text-sm text-muted-foreground p-5 text-center bg-secondary/20 rounded-lg">
                       No reviews yet. Be the first to share your experience!
                     </div>
                   )}
                   {reviews.map((r) => (
-                    <div key={r.id} className="border border-border rounded-lg p-4 hover:shadow-md transition-shadow bg-card">
-                      <div className="flex items-center gap-1.5 mb-2">
+                    <div key={r.id} className="border border-border rounded-lg p-5 hover:shadow-md transition-shadow bg-card">
+                      <div className="flex items-center gap-1.5 mb-3">
                         {Array.from({ length: 5 }).map((_, i) => (
                           <Star key={i} className={`w-4 h-4 ${r.rating >= i + 1 ? "fill-primary text-primary" : "text-muted-foreground"}`} />
                         ))}
                       </div>
-                      <div className="text-base mb-2">
+                      <div className="text-sm mb-3">
                         <span className="font-semibold mr-2">{`${(r.author?.first_name || '') } ${(r.author?.last_name || '')}`.trim() || r.author?.username}</span>
                         <span className="text-sm text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</span>
                       </div>
-                      <div className="text-base text-foreground whitespace-pre-wrap break-words">{r.comment}</div>
+                      <div className="text-sm text-foreground whitespace-pre-wrap break-words">{r.comment}</div>
                       {me && r.author?.id === me.id && (
                         <div className="flex gap-3 mt-4">
-                          <Button variant="outline" size="sm" className="h-9 px-4" onClick={() => { setRating(r.rating); setComment(r.comment || ""); setIsEditing(true); }}>
+                          <Button variant="outline" size="sm" className="h-8 px-4 text-sm" onClick={() => { setRating(r.rating); setComment(r.comment || ""); setIsEditing(true); }}>
                             Edit
                           </Button>
-                          <Button variant="destructive" size="sm" className="h-9 px-4" onClick={deleteMyReview}>
+                          <Button variant="destructive" size="sm" className="h-8 px-4 text-sm" onClick={deleteMyReview}>
                             Delete
                           </Button>
                         </div>
@@ -204,30 +204,30 @@ export function UserProfileDialog({ user, open, onOpenChange }: Props) {
               )}
             </div>
 
-            <div className="border-t border-border pt-6">
-              <h3 className="mb-4 text-lg font-semibold text-foreground">Write a Review</h3>
-              {error && <div className="text-sm text-destructive mb-3 p-3 bg-destructive/10 rounded-md">{error}</div>}
+            <div className="border-t border-border pt-8">
+              <h3 className="mb-6 text-base font-semibold text-foreground">Write a Review</h3>
+              {error && <div className="text-sm text-destructive mb-4 p-4 bg-destructive/10 rounded-md">{error}</div>}
               {!isEditing && (
-                <div className="flex items-center justify-between p-4 bg-secondary/20 rounded-lg">
+                <div className="flex items-center justify-between p-5 bg-secondary/20 rounded-lg">
                   {myReview ? (
-                    <div className="text-base text-muted-foreground">You have already reviewed this user.</div>
+                    <div className="text-sm text-muted-foreground">You have already reviewed this user.</div>
                   ) : (
-                    <div className="text-base text-muted-foreground">
+                    <div className="text-sm text-muted-foreground">
                       {me && user && me.id === user.id ? "You cannot review yourself." : "Share your experience by leaving a review."}
                     </div>
                   )}
                   <div className="flex gap-3">
                     {!myReview && (!me || !user || me.id !== user.id) && (
-                      <Button className="h-10 px-6" onClick={() => { setIsEditing(true); setRating(0); setComment(""); }}>
+                      <Button className="h-9 px-5 text-sm" onClick={() => { setIsEditing(true); setRating(0); setComment(""); }}>
                         Write a Review
                       </Button>
                     )}
                     {myReview && (
                       <>
-                        <Button variant="outline" className="h-10 px-6" onClick={() => { setIsEditing(true); setRating(myReview.rating); setComment(myReview.comment || ""); }}>
+                        <Button variant="outline" className="h-9 px-5 text-sm" onClick={() => { setIsEditing(true); setRating(myReview.rating); setComment(myReview.comment || ""); }}>
                           Edit Your Review
                         </Button>
-                        <Button variant="destructive" className="h-10 px-6" onClick={deleteMyReview}>
+                        <Button variant="destructive" className="h-9 px-5 text-sm" onClick={deleteMyReview}>
                           Delete
                         </Button>
                       </>
@@ -236,9 +236,9 @@ export function UserProfileDialog({ user, open, onOpenChange }: Props) {
                 </div>
               )}
               {isEditing && (
-                <div className="mt-4 p-5 border border-border rounded-lg bg-card space-y-4">
+                <div className="mt-5 p-6 border border-border rounded-lg bg-card space-y-5">
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Rating</label>
+                    <label className="text-sm font-medium mb-3 block">Rating</label>
                     <div className="flex items-center gap-2">
                       {Array.from({ length: 5 }).map((_, i) => {
                         const idx = i + 1;
@@ -252,27 +252,27 @@ export function UserProfileDialog({ user, open, onOpenChange }: Props) {
                             onClick={() => setRating(idx)}
                             className="p-1 hover:scale-110 transition-transform"
                           >
-                            <Star className={`w-7 h-7 ${filled ? "fill-primary text-primary" : "text-muted-foreground"}`} />
+                            <Star className={`w-6 h-6 ${filled ? "fill-primary text-primary" : "text-muted-foreground"}`} />
                           </button>
                         );
                       })}
                     </div>
                   </div>
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Comment</label>
+                    <label className="text-sm font-medium mb-3 block">Comment</label>
                     <Textarea
                       placeholder="Share your experience..."
                       value={comment}
                       onChange={(e) => setComment(e.target.value)}
-                      className="min-h-[120px] text-base p-4"
-                      rows={5}
+                      className="min-h-[100px] text-sm p-3"
+                      rows={4}
                     />
                   </div>
                   <div className="flex justify-end gap-3 pt-2">
-                    <Button variant="outline" className="h-10 px-6" onClick={() => { setIsEditing(false); setRating(0); setHoverRating(0); setComment(""); }}>
+                    <Button variant="outline" className="h-9 px-5 text-sm" onClick={() => { setIsEditing(false); setRating(0); setHoverRating(0); setComment(""); }}>
                       Cancel
                     </Button>
-                    <Button className="h-10 px-6" onClick={submitReview} disabled={submitting || rating === 0}>
+                    <Button className="h-9 px-5 text-sm" onClick={submitReview} disabled={submitting || rating === 0}>
                       {submitting ? (myReview ? "Saving..." : "Submitting...") : (myReview ? "Save Changes" : "Submit Review")}
                     </Button>
                   </div>

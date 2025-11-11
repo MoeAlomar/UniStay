@@ -980,14 +980,14 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
 
       {/* Edit Listing Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="sm:max-w-[860px] md:max-w-4xl min-w-[320px] w-auto max-h-[85vh] md:max-h-[90vh] flex flex-col border-2 border-border shadow-xl px-6 py-6 lg:max-h-[80vh]">
-          <DialogHeader className="mb-4">
+        <DialogContent className="sm:max-w-[900px] md:max-w-5xl lg:max-w-6xl min-w-[320px] w-auto max-h-[90vh] flex flex-col border-2 border-border shadow-xl px-10 py-8">
+          <DialogHeader className="mb-6">
             <DialogTitle className="text-2xl">Edit Listing</DialogTitle>
             <p className="text-sm text-muted-foreground mt-2">Update your property listing details and amenities.</p>
           </DialogHeader>
           {editingListing && (
-            <div className="flex-1 overflow-y-auto">
-              <Tabs defaultValue="details" className="space-y-6">
+            <div className="flex-1 overflow-y-auto pr-2">
+              <Tabs defaultValue="details" className="space-y-8">
                 <div className="max-w-full mx-auto">
                   <TabsList className="inline-flex h-auto gap-3 rounded-lg bg-secondary/50 p-1.5">
                     <TabsTrigger 
@@ -1004,17 +1004,17 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                     </TabsTrigger>
                   </TabsList>
                 </div>
-                <TabsContent value="details" className="space-y-8 mt-6">
+                <TabsContent value="details" className="space-y-6 mt-8">
                   {/* Basic Information Section */}
-                  <div className="p-5 border border-border rounded-lg bg-card space-y-6">
-                    <h3 className="text-lg font-semibold text-foreground">Basic Information</h3>
-                    <div className="grid md:grid-cols-2 gap-6">
+                  <div className="p-6 border border-border rounded-lg bg-card space-y-5">
+                    <h3 className="text-base font-semibold text-foreground">Basic Information</h3>
+                    <div className="grid md:grid-cols-2 gap-5">
                       <div className="space-y-2">
                         <Label htmlFor="edit_title" className="text-sm font-medium block">Property Title</Label>
                         <Input
                           id="edit_title"
                           defaultValue={editingListing.title}
-                          className="h-11 px-4 text-base"
+                          className="h-9 px-3 text-sm"
                           onChange={(e) => (editingListing.title = e.target.value)}
                         />
                       </div>
@@ -1024,20 +1024,20 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                           id="edit_price"
                           type="number"
                           defaultValue={editingListing.price}
-                          className="h-11 px-4 text-base"
+                          className="h-9 px-3 text-sm"
                           onChange={(e) => (editingListing.price = Number(e.target.value))}
                         />
                       </div>
                     </div>
 
-                    <div className="grid md:grid-cols-2 gap-6">
+                    <div className="grid md:grid-cols-2 gap-5">
                       <div className="space-y-2">
                         <Label className="text-sm font-medium block">District</Label>
                         <Select
                           value={editingListing.location || ""}
                           onValueChange={(v: string) => (editingListing.location = v)}
                         >
-                          <SelectTrigger className="h-11 text-base">
+                          <SelectTrigger className="h-9 text-sm">
                             <SelectValue placeholder="Select district" />
                           </SelectTrigger>
                           <SelectContent>
@@ -1055,7 +1055,7 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                           id="edit_location_link"
                           type="url"
                           defaultValue={editingListing.locationLink}
-                          className="h-11 px-4 text-base"
+                          className="h-9 px-3 text-sm"
                           placeholder="https://maps.google.com/..."
                           onChange={(e) => (editingListing.locationLink = e.target.value)}
                         />
@@ -1067,7 +1067,7 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                       <Textarea
                         id="edit_description"
                         defaultValue={editingListing.description || ""}
-                        className="min-h-[120px] text-base p-4"
+                        className="min-h-[100px] text-sm p-3"
                         placeholder="Describe your property..."
                         onChange={(e) => (editingListing.description = e.target.value)}
                       />
@@ -1075,16 +1075,16 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                   </div>
 
                   {/* Documentation Section */}
-                  <div className="p-5 border border-border rounded-lg bg-card space-y-6">
-                    <h3 className="text-lg font-semibold text-foreground">Documentation</h3>
-                    <div className="grid md:grid-cols-3 gap-6">
+                  <div className="p-6 border border-border rounded-lg bg-card space-y-5">
+                    <h3 className="text-base font-semibold text-foreground">Documentation</h3>
+                    <div className="grid md:grid-cols-3 gap-5">
                       <div className="space-y-2">
                         <Label className="text-sm font-medium block">ID Type</Label>
                         <Select
                           value={editingListing.idType || ""}
                           onValueChange={(v: "National_ID" | "Resident_ID") => setEditingListing((prev: any) => ({ ...prev, idType: v }))}
                         >
-                          <SelectTrigger className="h-11 text-base">
+                          <SelectTrigger className="h-9 text-sm">
                             <SelectValue placeholder="Select ID Type" />
                           </SelectTrigger>
                           <SelectContent>
@@ -1099,7 +1099,7 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                           id="edit_id_number"
                           inputMode="numeric"
                           value={editingListing.idNumber || ""}
-                          className="h-11 px-4 text-base"
+                          className="h-9 px-3 text-sm"
                           placeholder="10 digits"
                           onChange={(e) => setEditingListing((prev: any) => ({ ...prev, idNumber: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
                         />
@@ -1110,7 +1110,7 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                           id="edit_deed_number"
                           inputMode="numeric"
                           value={editingListing.deedNumber || ""}
-                          className="h-11 px-4 text-base"
+                          className="h-9 px-3 text-sm"
                           placeholder="10 digits"
                           onChange={(e) => setEditingListing((prev: any) => ({ ...prev, deedNumber: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
                         />
@@ -1119,16 +1119,16 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                   </div>
 
                   {/* Property Details Section */}
-                  <div className="p-5 border border-border rounded-lg bg-card space-y-6">
-                    <h3 className="text-lg font-semibold text-foreground">Property Details</h3>
-                    <div className="grid md:grid-cols-3 gap-6">
+                  <div className="p-6 border border-border rounded-lg bg-card space-y-5">
+                    <h3 className="text-base font-semibold text-foreground">Property Details</h3>
+                    <div className="grid md:grid-cols-3 gap-5">
                       <div className="space-y-2">
                         <Label htmlFor="edit_bedrooms" className="text-sm font-medium block">Bedrooms</Label>
                         <Input
                           id="edit_bedrooms"
                           type="number"
                           defaultValue={editingListing.bedrooms ?? ""}
-                          className="h-11 px-4 text-base"
+                          className="h-9 px-3 text-sm"
                           onChange={(e) => (editingListing.bedrooms = Number(e.target.value))}
                         />
                       </div>
@@ -1138,7 +1138,7 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                           id="edit_bathrooms"
                           type="number"
                           defaultValue={editingListing.bathrooms ?? ""}
-                          className="h-11 px-4 text-base"
+                          className="h-9 px-3 text-sm"
                           onChange={(e) => (editingListing.bathrooms = Number(e.target.value))}
                         />
                       </div>
@@ -1148,7 +1148,7 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                           id="edit_area"
                           type="number"
                           defaultValue={editingListing.area ?? ""}
-                          className="h-11 px-4 text-base"
+                          className="h-9 px-3 text-sm"
                           onChange={(e) => (editingListing.area = Number(e.target.value))}
                         />
                       </div>
@@ -1160,7 +1160,7 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                         value={editingListing.type || "APARTMENT"}
                         onValueChange={(v: "APARTMENT" | "STUDIO" | "OTHER") => setEditingListing((prev: any) => ({ ...prev, type: v }))}
                       >
-                        <SelectTrigger className="h-11 text-base max-w-md">
+                        <SelectTrigger className="h-9 text-sm max-w-md">
                           <SelectValue placeholder="Select type" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1173,8 +1173,8 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                   </div>
 
                   {/* Options Section */}
-                  <div className="p-5 border border-border rounded-lg bg-card space-y-6">
-                    <h3 className="text-lg font-semibold text-foreground">Options</h3>
+                  <div className="p-6 border border-border rounded-lg bg-card space-y-5">
+                    <h3 className="text-base font-semibold text-foreground">Options</h3>
                     <div className="flex flex-wrap gap-6">
                       <div className="flex items-center gap-3">
                         <Switch
@@ -1182,7 +1182,7 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                           checked={!!editingListing.femaleOnly}
                           onCheckedChange={(v: boolean) => setEditingListing((prev: any) => ({ ...prev, femaleOnly: v }))}
                         />
-                        <Label htmlFor="edit_female_only" className="text-base font-medium cursor-pointer">Female Only</Label>
+                        <Label htmlFor="edit_female_only" className="text-sm font-medium cursor-pointer">Female Only</Label>
                       </div>
                       <div className="flex items-center gap-3">
                         <Switch
@@ -1190,7 +1190,7 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                           checked={!!editingListing.studentDiscount}
                           onCheckedChange={(v: boolean) => setEditingListing((prev: any) => ({ ...prev, studentDiscount: v }))}
                         />
-                        <Label htmlFor="edit_student_discount" className="text-base font-medium cursor-pointer">Student Discount</Label>
+                        <Label htmlFor="edit_student_discount" className="text-sm font-medium cursor-pointer">Student Discount</Label>
                       </div>
                       <div className="flex items-center gap-3">
                         <Switch
@@ -1198,17 +1198,17 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                           checked={!!editingListing.roommatesAllowed}
                           onCheckedChange={(v: boolean) => setEditingListing((prev: any) => ({ ...prev, roommatesAllowed: v }))}
                         />
-                        <Label htmlFor="edit_roommates_allowed" className="text-base font-medium cursor-pointer">Roommates Allowed</Label>
+                        <Label htmlFor="edit_roommates_allowed" className="text-sm font-medium cursor-pointer">Roommates Allowed</Label>
                       </div>
                     </div>
                   </div>
               </TabsContent>
-              <TabsContent value="amenities" className="space-y-8 mt-6">
-                <div className="grid md:grid-cols-2 gap-6">
+              <TabsContent value="amenities" className="space-y-6 mt-8">
+                <div className="space-y-6">
                   {/* Common Amenities Card */}
-                  <div className="bg-card border border-border rounded-lg p-5 space-y-4">
+                  <div className="bg-card border border-border rounded-lg p-6 space-y-4">
                     <div>
-                      <h3 className="text-lg font-semibold text-foreground mb-2">Common Amenities</h3>
+                      <h3 className="text-base font-semibold text-foreground mb-2">Common Amenities</h3>
                       <p className="text-sm text-muted-foreground">Select from popular options</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -1220,7 +1220,7 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                             type="button"
                             size="sm"
                             variant={selected ? "default" : "outline"}
-                            className={selected ? "bg-primary text-primary-foreground" : ""}
+                            className={selected ? "bg-primary text-primary-foreground h-8 text-sm" : "h-8 text-sm"}
                             onClick={() => {
                               setEditingListing((prev: any) => {
                                 const exists = (prev.amenities || []).find((a: any) => a.title === opt.title);
@@ -1240,20 +1240,20 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                   </div>
 
                   {/* Custom Amenity Creator Card */}
-                  <div className="bg-card border border-border rounded-lg p-5 space-y-4">
+                  <div className="bg-card border border-border rounded-lg p-6 space-y-4">
                     <div>
-                      <h3 className="text-lg font-semibold text-foreground mb-2">Add Custom Amenity</h3>
+                      <h3 className="text-base font-semibold text-foreground mb-2">Add Custom Amenity</h3>
                       <p className="text-sm text-muted-foreground">Create your own amenity</p>
                     </div>
                     <div className="space-y-4">
-                      <div className="grid sm:grid-cols-2 gap-3">
+                      <div className="space-y-4">
                         <div className="space-y-2">
                           <Label htmlFor="amenity_title" className="text-sm font-medium block">Amenity Title</Label>
                           <Input
                             id="amenity_title"
                             placeholder="Max 30 chars"
                             maxLength={30}
-                            className="h-11 px-4 text-base"
+                            className="h-9 px-3 text-sm"
                             onChange={(e) => setAmenityTitle(e.target.value)}
                             value={amenityTitle}
                           />
@@ -1263,7 +1263,7 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                           <Input
                             id="amenity_symbol"
                             placeholder="Emoji or icon"
-                            className="h-11 px-4 text-base"
+                            className="h-9 px-3 text-sm"
                             value={amenitySymbol}
                             onChange={(e) => setAmenitySymbol(e.target.value.slice(0, 6))}
                           />
@@ -1279,7 +1279,7 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                               type="button"
                               size="sm"
                               variant={amenitySymbol === s ? "default" : "outline"}
-                              className={amenitySymbol === s ? "bg-primary text-primary-foreground" : ""}
+                              className={amenitySymbol === s ? "bg-primary text-primary-foreground h-8" : "h-8"}
                               onClick={() => setAmenitySymbol(s)}
                             >
                               {s}
@@ -1291,7 +1291,7 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                       <div className="flex flex-wrap md:flex-nowrap gap-3 pt-1">
                         <Button
                           type="button"
-                          className="flex-1 h-10"
+                          className="flex-1 h-9 text-sm"
                           onClick={() => {
                             const t = amenityTitle.trim();
                             const s = amenitySymbol.trim();
@@ -1307,7 +1307,7 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                         <Button 
                           type="button" 
                           variant="outline" 
-                          className="flex-1 h-10"
+                          className="flex-1 h-9 text-sm"
                           onClick={() => { setAmenityTitle(""); setAmenitySymbol(""); }}
                         >
                           Clear
@@ -1315,30 +1315,30 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                       </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Selected Amenities Preview */}
-                {Array.isArray(editingListing.amenities) && editingListing.amenities.length > 0 && (
-                  <div className="bg-card border border-border rounded-lg p-5 space-y-4">
-                    <h3 className="text-lg font-semibold text-foreground">Selected Amenities</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {editingListing.amenities.map((a: any, idx: number) => (
-                        <div key={idx} className="flex items-center gap-2 px-3 py-2 rounded-md border border-border text-sm bg-secondary/20">
-                          <span className="text-primary text-base">{a.symbol || "•"}</span>
-                          <span className="font-medium">{a.title}</span>
-                          <Button 
-                            size="sm" 
-                            variant="ghost" 
-                            className="h-6 w-6 p-0 ml-1"
-                            onClick={() => setEditingListing((prev: any) => ({ ...prev, amenities: (prev.amenities || []).filter((_: any, i: number) => i !== idx) }))}
-                          >
-                            ×
-                          </Button>
-                        </div>
-                      ))}
+                  {/* Selected Amenities Preview */}
+                  {Array.isArray(editingListing.amenities) && editingListing.amenities.length > 0 && (
+                    <div className="bg-card border border-border rounded-lg p-6 space-y-4">
+                      <h3 className="text-base font-semibold text-foreground">Selected Amenities</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {editingListing.amenities.map((a: any, idx: number) => (
+                          <div key={idx} className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-sm bg-secondary/20">
+                            <span className="text-primary">{a.symbol || "•"}</span>
+                            <span className="font-medium">{a.title}</span>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="h-5 w-5 p-0 ml-1 text-xs"
+                              onClick={() => setEditingListing((prev: any) => ({ ...prev, amenities: (prev.amenities || []).filter((_: any, i: number) => i !== idx) }))}
+                            >
+                              ×
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </TabsContent>
               </Tabs>
               
