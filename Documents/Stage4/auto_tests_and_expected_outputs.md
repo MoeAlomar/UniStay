@@ -1,5 +1,5 @@
 # Automated Test Suite — Darek MVP
-`auto_test1`, `auto_test2`, and `auto_test3` converted into a single Markdown test document with expected outputs and explanations. Save this as `auto_tests_and_expected_outputs.md` and run the Python test files against your local API (http://127.0.0.1:8000/) to verify behaviour.
+`auto_test1`, `auto_test2`, and `auto_test3` converted into a single Markdown test document with expected outputs and explanations.
 
 ---
 
