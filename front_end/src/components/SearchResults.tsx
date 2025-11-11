@@ -141,6 +141,7 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
               price: Number(l.price),
               title: l.title,
               location: labelMap[l.district] || l.district || "",
+              distance: "N/A",
               status: l.status,
               femaleOnly: !!l.female_only,
               roommatesAllowed: !!l.roommates_allowed,
@@ -181,6 +182,7 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
           price: Number(l.price),
           title: l.title,
           location: labelMap[l.district] || l.district || "",
+          distance: "N/A",
           status: l.status,
           femaleOnly: !!l.female_only,
           roommatesAllowed: !!l.roommates_allowed,
@@ -269,6 +271,7 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
             femaleOnly: !!l.female_only,
             roommatesAllowed: !!l.roommates_allowed,
             studentDiscount: !!l.student_discount,
+            distance: "N/A",
           };
         })
       );
@@ -302,7 +305,7 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
   return (
     <div className="min-h-screen bg-secondary">
       <div className="container mx-auto px-4 py-8">
-        <Tabs value={tabValue} onValueChange={(v) => setTabValue(v as any)}>
+        <Tabs value={tabValue} onValueChange={(v: string) => setTabValue(v as "find" | "favorites")}>
           <TabsList className="w-full mb-6">
             <TabsTrigger value="find">Find</TabsTrigger>
             <TabsTrigger value="favorites">Favorites</TabsTrigger>
@@ -339,19 +342,19 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
                   <Label className="mb-3 block">Property Type</Label>
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
-                      <Checkbox id="studio" checked={typeStudio} onCheckedChange={(v) => setTypeStudio(!!v)} />
+                      <Checkbox id="studio" checked={typeStudio} onCheckedChange={(v: boolean | "indeterminate") => setTypeStudio(!!v)} />
                       <label htmlFor="studio" className="text-sm cursor-pointer">
                         Studio
                       </label>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Checkbox id="other" checked={typeShared} onCheckedChange={(v) => setTypeShared(!!v)} />
+                      <Checkbox id="other" checked={typeShared} onCheckedChange={(v: boolean | "indeterminate") => setTypeShared(!!v)} />
                       <label htmlFor="other" className="text-sm cursor-pointer">
                         Other
                       </label>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Checkbox id="apartment" checked={typeApartment} onCheckedChange={(v) => setTypeApartment(!!v)} />
+                      <Checkbox id="apartment" checked={typeApartment} onCheckedChange={(v: boolean | "indeterminate") => setTypeApartment(!!v)} />
                       <label htmlFor="apartment" className="text-sm cursor-pointer">
                         Apartment
                       </label>
@@ -364,25 +367,25 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
                   <Label className="mb-3 block">Features</Label>
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
-                      <Checkbox id="available-only" checked={availableOnly} onCheckedChange={(v) => setAvailableOnly(!!v)} />
+                      <Checkbox id="available-only" checked={availableOnly} onCheckedChange={(v: boolean | "indeterminate") => setAvailableOnly(!!v)} />
                       <label htmlFor="available-only" className="text-sm cursor-pointer">
                         Available Only
                       </label>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Checkbox id="female" checked={femaleOnly} onCheckedChange={(v) => setFemaleOnly(!!v)} />
+                      <Checkbox id="female" checked={femaleOnly} onCheckedChange={(v: boolean | "indeterminate") => setFemaleOnly(!!v)} />
                       <label htmlFor="female" className="text-sm cursor-pointer">
                         Female Only
                       </label>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Checkbox id="discount" checked={studentDiscount} onCheckedChange={(v) => setStudentDiscount(!!v)} />
+                      <Checkbox id="discount" checked={studentDiscount} onCheckedChange={(v: boolean | "indeterminate") => setStudentDiscount(!!v)} />
                       <label htmlFor="discount" className="text-sm cursor-pointer">
                         Student Discount
                       </label>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Checkbox id="roommates" checked={roommatesOnly} onCheckedChange={(v) => setRoommatesOnly(!!v)} />
+                      <Checkbox id="roommates" checked={roommatesOnly} onCheckedChange={(v: boolean | "indeterminate") => setRoommatesOnly(!!v)} />
                       <label htmlFor="roommates" className="text-sm cursor-pointer">
                         Roommates Allowed
                       </label>
