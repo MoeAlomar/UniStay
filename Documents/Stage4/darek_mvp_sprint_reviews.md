@@ -20,10 +20,7 @@ This document summarises the outcomes of each sprint for the **Darek student‑h
 - Initial deployment to Railway (backend) and Netlify (frontend)  
 - Unit tests for core endpoints and basic QA run  
 
-**Demo/Links:**  
-- API endpoints demonstration: [https://darek-api.railway.app/docs](https://darek-api.railway.app/docs)  
-- Front‑end demo (search and listing view): [https://darek.netlify.app/?sprint=1-demo](https://darek.netlify.app/?sprint=1-demo)  
-- Sample pull requests: Sprint 1 PRs  
+
 
 ### Retrospective
 
@@ -63,11 +60,6 @@ This document summarises the outcomes of each sprint for the **Darek student‑h
 - Integration tests for messaging, matching and bookmarking  
 - Staging deployment updated; environment variables for Redis and Channels configured  
 
-**Demo/Links:**  
-- Messaging demo: [https://darek.netlify.app/?sprint=2-messaging](https://darek.netlify.app/?sprint=2-messaging)  
-- Roommate matching demo: [https://darek.netlify.app/?sprint=2-roommates](https://darek.netlify.app/?sprint=2-roommates)  
-- Verification and dashboard showcase: [https://darek.netlify.app/?sprint=2-dashboard](https://darek.netlify.app/?sprint=2-dashboard)  
-- Pull requests for Sprint 2: Sprint 2 PRs  
 
 ### Retrospective
 
@@ -107,11 +99,7 @@ This document summarises the outcomes of each sprint for the **Darek student‑h
 - User documentation and demo video prepared  
 - Sprint retrospective and lessons‑learned session held  
 
-**Demo/Links:**  
-- Admin dashboard demo: [https://darek.netlify.app/?sprint=3-admin](https://darek.netlify.app/?sprint=3-admin)  
-- Rating & reporting showcase: [https://darek.netlify.app/?sprint=3-reviews](https://darek.netlify.app/?sprint=3-reviews)  
-- Final release (pilot launch): [https://darek.netlify.app](https://darek.netlify.app)  
-- Pull requests for Sprint 3: Sprint 3 PRs  
+
 
 ### Retrospective
 
