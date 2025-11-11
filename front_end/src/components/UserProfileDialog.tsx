@@ -135,22 +135,22 @@ export function UserProfileDialog({ user, open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl md:max-w-2xl lg:max-w-3xl w-auto max-w-[720px] h-auto max-h-[90vh] flex flex-col border-2 border-border shadow-xl px-6 py-6">
+      <DialogContent className="sm:max-w-[860px] md:max-w-4xl min-w-[320px] w-auto h-auto max-h-[85vh] md:max-h-[90vh] flex flex-col border-2 border-border shadow-xl px-6 py-6 lg:max-h-[80vh] overflow-y-auto">
         <DialogHeader className="mb-4">
           <DialogTitle className="text-2xl">Profile</DialogTitle>
         </DialogHeader>
         {!user ? (
           <div className="text-base text-muted-foreground p-4">No user selected.</div>
         ) : (
-          <div className="space-y-6">
-            <div className="flex items-center gap-5 p-4 rounded-lg bg-secondary/30">
-          <Avatar className="w-20 h-20 border-2 border-primary/20">
+          <div className="space-y-8">
+            <div className="flex items-center gap-6 md:gap-8 p-4 rounded-lg bg-secondary/30">
+          <Avatar className="w-24 h-24 border-2 border-primary/20">
             {(user?.avatar_url || (user as any)?.avatar) ? (
               <AvatarImage src={transformAvatar((user?.avatar_url || (user as any)?.avatar) as string)} alt={user?.username || "User"} />
             ) : null}
             <AvatarFallback className="text-lg">{initials}</AvatarFallback>
           </Avatar>
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 pl-2">
                 <div className="flex items-center gap-3 mb-1.5">
                   <span className="text-lg font-semibold">{`${user.first_name} ${user.last_name}`.trim() || user.username}</span>
                   {user.is_email_verified && (

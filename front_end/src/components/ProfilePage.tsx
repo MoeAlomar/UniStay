@@ -104,11 +104,11 @@ export function ProfilePage({ user: userProp, onNavigate }: Props) {
 
   return (
     <div className="container mx-auto max-w-5xl px-8 py-10">
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex items-center gap-3 mb-4">
         <Button variant="ghost" size="sm" onClick={() => onNavigate("landing")}> 
           <ArrowLeft className="w-4 h-4 mr-1" /> Back
         </Button>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
@@ -125,7 +125,7 @@ export function ProfilePage({ user: userProp, onNavigate }: Props) {
       </div>
       <Card className="shadow-md">
         <CardHeader className="pb-6">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-6">
             <div className="relative">
               <Avatar className="h-24 w-24">
                 {user?.avatar_url ? (
@@ -150,7 +150,7 @@ export function ProfilePage({ user: userProp, onNavigate }: Props) {
                 }}
               />
             </div>
-            <div className="flex-1">
+            <div className="flex-1 pl-2">
               <CardTitle className="text-2xl">
                 {(user?.first_name || user?.last_name) ? `${user?.first_name ?? ""} ${user?.last_name ?? ""}`.trim() : user?.username}
               </CardTitle>

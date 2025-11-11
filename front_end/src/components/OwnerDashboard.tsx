@@ -279,25 +279,25 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                 </CardHeader>
                 <CardContent>
                   <Tabs defaultValue="details">
-                    <TabsList className="mb-4">
-                      <TabsTrigger value="details">Details</TabsTrigger>
-                      <TabsTrigger value="amenities">Amenities</TabsTrigger>
+                    <TabsList className="mb-4 gap-3">
+                      <TabsTrigger value="details" className="px-5 py-3 text-sm font-medium">Details</TabsTrigger>
+                      <TabsTrigger value="amenities" className="px-5 py-3 text-sm font-medium">Amenities</TabsTrigger>
                     </TabsList>
                     <TabsContent value="details">
-                      <div className="space-y-6">
-                        <div className="grid md:grid-cols-2 gap-6">
-                          <div>
+                      <div className="space-y-8">
+                        <div className="grid md:grid-cols-2 gap-8">
+                          <div className="space-y-3">
                             <Label htmlFor="title">Property Title</Label>
                             <Input id="title" placeholder="e.g., Modern Apartment" value={title} onChange={(e) => setTitle(e.target.value)} />
                           </div>
-                          <div>
+                          <div className="space-y-3">
                             <Label htmlFor="price">Monthly Rent (SAR)</Label>
                             <Input id="price" type="number" placeholder="2000" value={price as any} onChange={(e) => setPrice(Number(e.target.value))} />
                           </div>
                         </div>
 
-                        <div className="grid md:grid-cols-2 gap-6">
-                          <div>
+                        <div className="grid md:grid-cols-2 gap-8 mt-6">
+                          <div className="space-y-3">
                             <Label>District</Label>
                             <Select value={districtValue} onValueChange={setDistrictValue}>
                               <SelectTrigger>
@@ -310,14 +310,14 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                               </SelectContent>
                             </Select>
                           </div>
-                          <div>
+                          <div className="space-y-3">
                             <Label htmlFor="location_link">Location Link</Label>
                             <Input id="location_link" type="url" placeholder="https://maps.google.com/..." value={locationLink} onChange={(e) => setLocationLink(e.target.value)} />
                           </div>
                         </div>
 
-                        <div className="grid md:grid-cols-3 gap-6">
-                          <div>
+                        <div className="grid md:grid-cols-3 gap-8 mt-6">
+                          <div className="space-y-3">
                             <Label>ID Type</Label>
                             <Select value={idType} onValueChange={setIdType}>
                               <SelectTrigger>
@@ -329,7 +329,7 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                               </SelectContent>
                             </Select>
                           </div>
-                          <div>
+                          <div className="space-y-3">
                             <Label htmlFor="id_number">ID Number</Label>
                             <Input
                               id="id_number"
@@ -340,7 +340,7 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                             />
                             <p className="text-xs text-muted-foreground mt-1">Exactly 10 digits</p>
                           </div>
-                          <div>
+                          <div className="space-y-3">
                             <Label htmlFor="deed_number">Deed Number</Label>
                             <Input
                               id="deed_number"
@@ -353,8 +353,8 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                           </div>
                         </div>
 
-                        <div className="grid md:grid-cols-2 gap-6">
-                          <div>
+                        <div className="grid md:grid-cols-2 gap-8 mt-6">
+                          <div className="space-y-3">
                             <Label>Status</Label>
                             <Select value={statusValue} onValueChange={(v: "DRAFT" | "AVAILABLE" | "RESERVED") => setStatusValue(v)}>
                               <SelectTrigger>
@@ -366,7 +366,7 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                               </SelectContent>
                             </Select>
                           </div>
-                          <div>
+                          <div className="space-y-3">
                             <Label>Property Type</Label>
                             <Select value={typeValue} onValueChange={setTypeValue}>
                               <SelectTrigger>
@@ -381,21 +381,21 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                           </div>
                         </div>
 
-                        <div>
+                        <div className="mt-6 space-y-3">
                           <Label htmlFor="description">Description</Label>
                           <Textarea id="description" placeholder="Describe your property..." rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
                         </div>
 
-                        <div className="grid md:grid-cols-3 gap-6">
-                          <div>
+                        <div className="grid md:grid-cols-3 gap-8 mt-6">
+                          <div className="space-y-3">
                             <Label htmlFor="bedrooms">Bedrooms</Label>
                             <Input id="bedrooms" type="number" placeholder="1" value={bedrooms as any} onChange={(e) => setBedrooms(Number(e.target.value))} />
                           </div>
-                          <div>
+                          <div className="space-y-3">
                             <Label htmlFor="bathrooms">Bathrooms</Label>
                             <Input id="bathrooms" type="number" placeholder="1" value={bathrooms as any} onChange={(e) => setBathrooms(Number(e.target.value))} />
                           </div>
-                          <div>
+                          <div className="space-y-3">
                             <Label htmlFor="area">Area (m²)</Label>
                             <Input id="area" type="number" placeholder="45" value={area as any} onChange={(e) => setArea(Number(e.target.value))} />
                           </div>
@@ -458,47 +458,32 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                           )}
                         </div>
 
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <Label htmlFor="female-only">Female Only</Label>
-                              <p className="text-sm text-muted-foreground">
-                                This property is for female tenants only
-                              </p>
-                            </div>
+                        <div className="flex flex-wrap items-center gap-6 pt-6 border-t mt-8">
+                          <div className="flex items-center gap-3">
                             <Switch
                               id="female-only"
                               checked={femaleOnly}
                               onCheckedChange={setFemaleOnly}
                             />
+                            <Label htmlFor="female-only" className="cursor-pointer font-medium">Female Only</Label>
                           </div>
 
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <Label htmlFor="student-discount">Student Discount</Label>
-                              <p className="text-sm text-muted-foreground">
-                                Offer special rates for students
-                              </p>
-                            </div>
+                          <div className="flex items-center gap-3">
                             <Switch
                               id="student-discount"
                               checked={studentDiscount}
                               onCheckedChange={setStudentDiscount}
                             />
+                            <Label htmlFor="student-discount" className="cursor-pointer font-medium">Student Discount</Label>
                           </div>
 
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <Label htmlFor="roommates-allowed">Roommates Allowed</Label>
-                              <p className="text-sm text-muted-foreground">
-                                Allow tenants to share with roommates
-                              </p>
-                            </div>
+                          <div className="flex items-center gap-3">
                             <Switch
                               id="roommates-allowed"
                               checked={roommatesAllowed}
                               onCheckedChange={setRoommatesAllowed}
                             />
+                            <Label htmlFor="roommates-allowed" className="cursor-pointer font-medium">Roommates Allowed</Label>
                           </div>
                         </div>
 
@@ -1168,8 +1153,8 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid md:grid-cols-3 gap-5">
-                <div className="flex items-center gap-3 p-3 bg-secondary/20 rounded-lg">
+              <div className="flex flex-wrap items-center gap-6 pt-6 border-t mt-6">
+                <div className="flex items-center gap-3">
                   <Switch
                     id="edit_female_only"
                     checked={!!editingListing.femaleOnly}
@@ -1177,7 +1162,7 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                   />
                   <Label htmlFor="edit_female_only" className="text-base font-medium cursor-pointer">Female Only</Label>
                 </div>
-                <div className="flex items-center gap-3 p-3 bg-secondary/20 rounded-lg">
+                <div className="flex items-center gap-3">
                   <Switch
                     id="edit_student_discount"
                     checked={!!editingListing.studentDiscount}
@@ -1185,7 +1170,7 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                   />
                   <Label htmlFor="edit_student_discount" className="text-base font-medium cursor-pointer">Student Discount</Label>
                 </div>
-                <div className="flex items-center gap-3 p-3 bg-secondary/20 rounded-lg">
+                <div className="flex items-center gap-3">
                   <Switch
                     id="edit_roommates_allowed"
                     checked={!!editingListing.roommatesAllowed}

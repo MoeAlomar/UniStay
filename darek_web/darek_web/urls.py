@@ -2,6 +2,9 @@
 from django.contrib import admin
 from django.urls import path, include, re_path
 from django.http import JsonResponse
+from django.views.generic import TemplateView
+from django.conf import settings
+import os
 
 # === Swagger imports ===
 from drf_yasg.views import get_schema_view
