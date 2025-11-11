@@ -135,98 +135,99 @@ export function UserProfileDialog({ user, open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl md:max-w-2xl lg:max-w-3xl w-auto max-w-[680px] h-auto max-h-[90vh] flex flex-col border-2 border-border shadow-xl">
-        <DialogHeader>
-          <DialogTitle>Profile</DialogTitle>
+      <DialogContent className="sm:max-w-xl md:max-w-2xl lg:max-w-3xl w-auto max-w-[720px] h-auto max-h-[90vh] flex flex-col border-2 border-border shadow-xl px-6 py-6">
+        <DialogHeader className="mb-4">
+          <DialogTitle className="text-2xl">Profile</DialogTitle>
         </DialogHeader>
         {!user ? (
-          <div className="text-sm text-muted-foreground">No user selected.</div>
+          <div className="text-base text-muted-foreground p-4">No user selected.</div>
         ) : (
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
-          <Avatar className="w-16 h-16">
+          <div className="space-y-6">
+            <div className="flex items-center gap-5 p-4 rounded-lg bg-secondary/30">
+          <Avatar className="w-20 h-20 border-2 border-primary/20">
             {(user?.avatar_url || (user as any)?.avatar) ? (
               <AvatarImage src={transformAvatar((user?.avatar_url || (user as any)?.avatar) as string)} alt={user?.username || "User"} />
             ) : null}
-            <AvatarFallback>{initials}</AvatarFallback>
+            <AvatarFallback className="text-lg">{initials}</AvatarFallback>
           </Avatar>
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span>{`${user.first_name} ${user.last_name}`.trim() || user.username}</span>
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-3 mb-1.5">
+                  <span className="text-lg font-semibold">{`${user.first_name} ${user.last_name}`.trim() || user.username}</span>
                   {user.is_email_verified && (
-                    <Badge variant="success">Verified</Badge>
+                    <Badge variant="success" className="px-3 py-1">Verified</Badge>
                   )}
                 </div>
-                <div className="text-sm text-muted-foreground">@{user.username}</div>
-                <div className="text-sm text-muted-foreground">Role: {user.role}</div>
+                <div className="text-base text-muted-foreground">@{user.username}</div>
+                <div className="text-sm text-muted-foreground capitalize">Role: {user.role}</div>
               </div>
             </div>
 
             <div className="flex-1 overflow-y-auto">
-              <h3 className="mb-2 text-foreground">Reviews</h3>
+              <h3 className="mb-4 text-lg font-semibold text-foreground">Reviews</h3>
               {loading ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-48" />
-                  <Skeleton className="h-4 w-full" />
+                <div className="space-y-3">
+                  <Skeleton className="h-6 w-48" />
+                  <Skeleton className="h-20 w-full" />
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {reviews.length === 0 && (
-                    <div className="text-sm text-muted-foreground">No reviews yet.</div>
+                    <div className="text-base text-muted-foreground p-4 text-center bg-secondary/20 rounded-lg">
+                      No reviews yet. Be the first to share your experience!
+                    </div>
                   )}
                   {reviews.map((r) => (
-                    <div key={r.id} className="border-b border-border pb-2">
-                      <div className="flex items-center gap-1 mb-1">
+                    <div key={r.id} className="border border-border rounded-lg p-4 hover:shadow-md transition-shadow bg-card">
+                      <div className="flex items-center gap-1.5 mb-2">
                         {Array.from({ length: 5 }).map((_, i) => (
-                          <Star key={i} className={`w-3 h-3 ${r.rating >= i + 1 ? "fill-primary text-primary" : "text-primary"}`} />
+                          <Star key={i} className={`w-4 h-4 ${r.rating >= i + 1 ? "fill-primary text-primary" : "text-muted-foreground"}`} />
                         ))}
                       </div>
-                      <div className="text-sm">
-                        <span className="font-medium mr-2">{`${(r.author?.first_name || '')} ${(r.author?.last_name || '')}`.trim() || r.author?.username}</span>
-                        <span className="text-muted-foreground">{new Date(r.created_at).toLocaleString()}</span>
+                      <div className="text-base mb-2">
+                        <span className="font-semibold mr-2">{`${(r.author?.first_name || '') } ${(r.author?.last_name || '')}`.trim() || r.author?.username}</span>
+                        <span className="text-sm text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</span>
                       </div>
-                      <div className="text-sm text-muted-foreground whitespace-pre-wrap break-all">{r.comment}</div>
+                      <div className="text-base text-foreground whitespace-pre-wrap break-words">{r.comment}</div>
                       {me && r.author?.id === me.id && (
-                        <div className="flex gap-2 mt-2">
-                          <Button variant="outline" size="sm" onClick={() => { setRating(r.rating); setComment(r.comment || ""); setIsEditing(true); }}>
+                        <div className="flex gap-3 mt-4">
+                          <Button variant="outline" size="sm" className="h-9 px-4" onClick={() => { setRating(r.rating); setComment(r.comment || ""); setIsEditing(true); }}>
                             Edit
                           </Button>
-                          <Button variant="destructive" size="sm" onClick={deleteMyReview}>
+                          <Button variant="destructive" size="sm" className="h-9 px-4" onClick={deleteMyReview}>
                             Delete
                           </Button>
                         </div>
                       )}
-                      <div className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleString()}</div>
                     </div>
                   ))}
                 </div>
               )}
             </div>
 
-            <div>
-              <h3 className="mb-2 text-foreground">Reviews</h3>
-              {error && <div className="text-sm text-destructive mb-2">{error}</div>}
+            <div className="border-t border-border pt-6">
+              <h3 className="mb-4 text-lg font-semibold text-foreground">Write a Review</h3>
+              {error && <div className="text-sm text-destructive mb-3 p-3 bg-destructive/10 rounded-md">{error}</div>}
               {!isEditing && (
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between p-4 bg-secondary/20 rounded-lg">
                   {myReview ? (
-                    <div className="text-sm text-muted-foreground">You have already reviewed this user.</div>
+                    <div className="text-base text-muted-foreground">You have already reviewed this user.</div>
                   ) : (
-                    <div className="text-sm text-muted-foreground">
+                    <div className="text-base text-muted-foreground">
                       {me && user && me.id === user.id ? "You cannot review yourself." : "Share your experience by leaving a review."}
                     </div>
                   )}
-                  <div className="flex gap-2">
+                  <div className="flex gap-3">
                     {!myReview && (!me || !user || me.id !== user.id) && (
-                      <Button size="sm" onClick={() => { setIsEditing(true); setRating(0); setComment(""); }}>
+                      <Button className="h-10 px-6" onClick={() => { setIsEditing(true); setRating(0); setComment(""); }}>
                         Write a Review
                       </Button>
                     )}
                     {myReview && (
                       <>
-                        <Button variant="outline" size="sm" onClick={() => { setIsEditing(true); setRating(myReview.rating); setComment(myReview.comment || ""); }}>
+                        <Button variant="outline" className="h-10 px-6" onClick={() => { setIsEditing(true); setRating(myReview.rating); setComment(myReview.comment || ""); }}>
                           Edit Your Review
                         </Button>
-                        <Button variant="destructive" size="sm" onClick={deleteMyReview}>
+                        <Button variant="destructive" className="h-10 px-6" onClick={deleteMyReview}>
                           Delete
                         </Button>
                       </>
@@ -235,36 +236,43 @@ export function UserProfileDialog({ user, open, onOpenChange }: Props) {
                 </div>
               )}
               {isEditing && (
-                <div className="mt-3">
-                  <div className="flex items-center gap-1 mb-2">
-                    {Array.from({ length: 5 }).map((_, i) => {
-                      const idx = i + 1;
-                      const filled = (hoverRating || rating) >= idx;
-                      return (
-                        <button
-                          key={idx}
-                          type="button"
-                          onMouseEnter={() => setHoverRating(idx)}
-                          onMouseLeave={() => setHoverRating(0)}
-                          onClick={() => setRating(idx)}
-                          className="p-0"
-                        >
-                          <Star className={`w-5 h-5 ${filled ? "fill-primary text-primary" : "text-primary"}`} />
-                        </button>
-                      );
-                    })}
+                <div className="mt-4 p-5 border border-border rounded-lg bg-card space-y-4">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Rating</label>
+                    <div className="flex items-center gap-2">
+                      {Array.from({ length: 5 }).map((_, i) => {
+                        const idx = i + 1;
+                        const filled = (hoverRating || rating) >= idx;
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onMouseEnter={() => setHoverRating(idx)}
+                            onMouseLeave={() => setHoverRating(0)}
+                            onClick={() => setRating(idx)}
+                            className="p-1 hover:scale-110 transition-transform"
+                          >
+                            <Star className={`w-7 h-7 ${filled ? "fill-primary text-primary" : "text-muted-foreground"}`} />
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <Textarea
-                    placeholder="Share your experience..."
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    rows={5}
-                  />
-                  <div className="flex justify-end mt-2 gap-2">
-                    <Button variant="outline" onClick={() => { setIsEditing(false); setRating(0); setHoverRating(0); setComment(""); }}>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Comment</label>
+                    <Textarea
+                      placeholder="Share your experience..."
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      className="min-h-[120px] text-base p-4"
+                      rows={5}
+                    />
+                  </div>
+                  <div className="flex justify-end gap-3 pt-2">
+                    <Button variant="outline" className="h-10 px-6" onClick={() => { setIsEditing(false); setRating(0); setHoverRating(0); setComment(""); }}>
                       Cancel
                     </Button>
-                    <Button onClick={submitReview} disabled={submitting || rating === 0}>
+                    <Button className="h-10 px-6" onClick={submitReview} disabled={submitting || rating === 0}>
                       {submitting ? (myReview ? "Saving..." : "Submitting...") : (myReview ? "Save Changes" : "Submit Review")}
                     </Button>
                   </div>

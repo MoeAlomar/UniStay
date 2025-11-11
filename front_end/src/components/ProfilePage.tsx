@@ -103,7 +103,7 @@ export function ProfilePage({ user: userProp, onNavigate }: Props) {
   }
 
   return (
-    <div className="container mx-auto max-w-4xl p-4">
+    <div className="container mx-auto max-w-5xl px-8 py-10">
       <div className="flex items-center gap-2 mb-4">
         <Button variant="ghost" size="sm" onClick={() => onNavigate("landing")}> 
           <ArrowLeft className="w-4 h-4 mr-1" /> Back
@@ -123,11 +123,11 @@ export function ProfilePage({ user: userProp, onNavigate }: Props) {
           </Button>
         </div>
       </div>
-      <Card>
-        <CardHeader>
+      <Card className="shadow-md">
+        <CardHeader className="pb-6">
           <div className="flex items-center gap-4">
             <div className="relative">
-              <Avatar className="h-16 w-16">
+              <Avatar className="h-24 w-24">
                 {user?.avatar_url ? (
                   <AvatarImage src={transformAvatar(user.avatar_url)} alt="Profile photo" loading="eager" decoding="async" />
                 ) : null}
@@ -170,7 +170,7 @@ export function ProfilePage({ user: userProp, onNavigate }: Props) {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-8">
           <div className="flex items-center gap-2 mb-4">
             <Button
               variant="outline"
@@ -185,9 +185,9 @@ export function ProfilePage({ user: userProp, onNavigate }: Props) {
             )}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <div className="text-sm text-muted-foreground">First name</div>
-              <div className="text-base">{user?.first_name || "—"}</div>
+            <div className="space-y-2">
+              <div className="text-sm font-medium text-muted-foreground">First name</div>
+              <div className="text-lg">{user?.first_name || "—"}</div>
             </div>
             <div>
               <div className="text-sm text-muted-foreground">Last name</div>

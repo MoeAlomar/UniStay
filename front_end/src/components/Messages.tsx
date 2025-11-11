@@ -6,17 +6,18 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { ScrollArea } from "./ui/scroll-area";
 import { Send, Search, Plus } from "lucide-react";
-import {
-  getTwilioClient,
-  listSubscribedConversations,
-  getConversationBySid,
-  getMessages,
-  sendMessage as sendViaAPI,
-  markAllRead,
-  openOrCreateByUsername,
-  type Conversation,
-  type Message,
-} from "../services/messaging";
+  import {
+    getTwilioClient,
+    listSubscribedConversations,
+    getConversationBySid,
+    getMessages,
+    getMessagesPage,
+    sendMessage as sendViaAPI,
+    markAllRead,
+    openOrCreateByUsername,
+    type Conversation,
+    type Message,
+  } from "../services/messaging";
 import type { User } from "../services/auth";
 import { getUserById } from "../services/auth";
 import UserProfileDialog from "./UserProfileDialog";
@@ -79,6 +80,11 @@ export function Messages() {
   const [createErr, setCreateErr] = useState<string>("");
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+  const skipAutoScrollRef = useRef<boolean>(false);
+  const [msgPage, setMsgPage] = useState<any | null>(null);
+  const [hasMore, setHasMore] = useState<boolean>(false);
+  const [loadingOlder, setLoadingOlder] = useState<boolean>(false);
 
   const initialSidFromURL = (() => {
     try {
@@ -90,6 +96,7 @@ export function Messages() {
   })();
 
   useEffect(() => {
+    if (skipAutoScrollRef.current) return;
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
@@ -261,7 +268,7 @@ export function Messages() {
     };
   }, [convList, convMap]);
 
-  /** Load messages when switching conversations */
+  /** Load messages (paginated) when switching conversations */
   useEffect(() => {
     let unsubscribe: (() => void) | null = null;
     let mounted = true;
@@ -272,9 +279,18 @@ export function Messages() {
       if (!mounted) return;
 
       setSelectedConversation(convo);
-      const items = await getMessages(convo, 100);
+      // Reset pagination state on conversation change
+      setMsgPage(null);
+      setHasMore(false);
+      setLoadingOlder(false);
+      skipAutoScrollRef.current = false;
+
+      // Initial page: latest 50 messages
+      const page = await getMessagesPage(convo, 50);
       if (!mounted) return;
-      setMessages(items);
+      setMsgPage(page);
+      setHasMore(!!page?.hasPrevPage);
+      setMessages(page?.items || []);
       await markAllRead(convo);
 
       const onMsgAdded = async (m: Message) => {
@@ -329,6 +345,38 @@ export function Messages() {
       if (unsubscribe) unsubscribe();
     };
   }, [selectedSid]);
+
+  const loadOlder = async () => {
+    const viewport = viewportRef.current;
+    if (!viewport || loadingOlder || !msgPage) return;
+    try {
+      if (!msgPage.hasPrevPage) return;
+      setLoadingOlder(true);
+      const prevHeight = viewport.scrollHeight;
+      const prevTop = viewport.scrollTop;
+      const older = await msgPage.prevPage();
+      setMsgPage(older);
+      setHasMore(!!older.hasPrevPage);
+      skipAutoScrollRef.current = true;
+      setMessages((prev) => [...(older.items || []), ...prev]);
+      // Preserve scroll position after prepending
+      setTimeout(() => {
+        const newHeight = viewport.scrollHeight;
+        viewport.scrollTop = newHeight - prevHeight + prevTop + 1;
+        skipAutoScrollRef.current = false;
+        setLoadingOlder(false);
+      }, 0);
+    } catch (_) {
+      setLoadingOlder(false);
+    }
+  };
+
+  const handleScroll: React.UIEventHandler<HTMLDivElement> = (e) => {
+    const el = e.currentTarget;
+    if (el.scrollTop <= 10) {
+      void loadOlder();
+    }
+  };
 
   /** Load other participant's user profile for avatars and profile dialog */
   useEffect(() => {
@@ -663,7 +711,7 @@ export function Messages() {
                 </div>
               </div>
 
-              <ScrollArea className="flex-1 p-4">
+              <ScrollArea className="flex-1 p-4" viewportRef={viewportRef} onScroll={handleScroll}>
                 <div className="space-y-4">
                   {messages.map((m) => (
                     <div

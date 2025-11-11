@@ -995,50 +995,60 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
 
       {/* Edit Listing Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="w-[90vw] max-w-[640px] h-[82vh] flex flex-col px-3 py-3">
-          <DialogHeader>
-            <DialogTitle>Edit Listing</DialogTitle>
+        <DialogContent className="w-[90vw] max-w-[720px] h-[85vh] flex flex-col px-6 py-6">
+          <DialogHeader className="mb-2">
+            <DialogTitle className="text-2xl">Edit Listing</DialogTitle>
           </DialogHeader>
           {editingListing && (
-            <div className="space-y-2 flex-1 overflow-y-auto">
+            <div className="space-y-4 flex-1 overflow-y-auto">
               <Tabs defaultValue="details" className="min-h-[65vh]">
                 <div className="max-w-full mx-auto">
-                  <TabsList className="inline-flex h-auto gap-2 rounded-none bg-transparent p-0 mb-4">
-                    <TabsTrigger value="details" className="px-4 py-2 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Details</TabsTrigger>
-                    <TabsTrigger value="amenities" className="px-4 py-2 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Amenities</TabsTrigger>
+                  <TabsList className="inline-flex h-auto gap-3 rounded-lg bg-secondary/50 p-1.5 mb-6">
+                    <TabsTrigger 
+                      value="details" 
+                      className="px-6 py-3 rounded-md text-base font-medium transition-all data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+                    >
+                      Details
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      value="amenities" 
+                      className="px-6 py-3 rounded-md text-base font-medium transition-all data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+                    >
+                      Amenities
+                    </TabsTrigger>
                   </TabsList>
                 </div>
-                <TabsContent value="details">
-              <div className="grid md:grid-cols-2 gap-2">
-                <div>
-                  <Label htmlFor="edit_title" className="text-xs">Property Title</Label>
+                <TabsContent value="details" className="space-y-5">
+              <div className="grid md:grid-cols-2 gap-5">
+                <div className="space-y-2">
+                  <Label htmlFor="edit_title" className="text-sm font-medium">Property Title</Label>
                   <Input
                     id="edit_title"
                     defaultValue={editingListing.title}
-                    className="h-6 px-2 text-sm w-full max-w-xs"
+                    className="h-11 px-4 text-base w-full"
                     onChange={(e) => (editingListing.title = e.target.value)}
                   />
                 </div>
-                <div>
-                  <Label htmlFor="edit_price" className="text-xs">Monthly Rent (SAR)</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="edit_price" className="text-sm font-medium">Monthly Rent (SAR)</Label>
                   <Input
                     id="edit_price"
                     type="number"
                     defaultValue={editingListing.price}
-                    className="h-6 px-2 text-sm"
+                    className="h-11 px-4 text-base"
                     onChange={(e) => (editingListing.price = Number(e.target.value))}
                   />
                 </div>
               </div>
-              <div className="grid md:grid-cols-2 gap-3">
-                <div>
-                  <Label>District</Label>
+              <div className="grid md:grid-cols-2 gap-5">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">District</Label>
                   <Select
                     value={editingListing.location || ""}
                     onValueChange={(v: string) => (editingListing.location = v)}
                   >
-                    <SelectTrigger size="sm" className="h-7 text-sm">
-                      <SelectValue placeholder="Select" />
+                    <SelectTrigger className="h-11 text-base">
+                      <SelectValue placeholder="Select district" />
                     </SelectTrigger>
                     <SelectContent>
                       {districtOptions.map((opt) => (
@@ -1049,34 +1059,36 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label htmlFor="edit_location_link" className="text-xs">Location Link</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="edit_location_link" className="text-sm font-medium">Location Link</Label>
                   <Input
                     id="edit_location_link"
                     type="url"
                     defaultValue={editingListing.locationLink}
-                    className="h-7 px-2 text-sm"
+                    className="h-11 px-4 text-base"
+                    placeholder="https://maps.google.com/..."
                     onChange={(e) => (editingListing.locationLink = e.target.value)}
                   />
                 </div>
               </div>
-              <div>
-                <Label htmlFor="edit_description" className="text-xs">Description</Label>
+              <div className="space-y-2">
+                <Label htmlFor="edit_description" className="text-sm font-medium">Description</Label>
                 <Textarea
                   id="edit_description"
                   defaultValue={editingListing.description || ""}
-                  className="h-20 text-sm"
+                  className="min-h-[120px] text-base p-4"
+                  placeholder="Describe your property..."
                   onChange={(e) => (editingListing.description = e.target.value)}
                 />
               </div>
-              <div className="grid md:grid-cols-3 gap-2">
-                <div>
-                  <Label className="text-xs">ID Type</Label>
+              <div className="grid md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">ID Type</Label>
                   <Select
                     value={editingListing.idType || ""}
                     onValueChange={(v: "National_ID" | "Resident_ID") => setEditingListing((prev: any) => ({ ...prev, idType: v }))}
                   >
-                    <SelectTrigger size="sm" className="h-6 text-sm max-w-xs">
+                    <SelectTrigger className="h-11 text-base">
                       <SelectValue placeholder="Select ID Type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1085,66 +1097,68 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label htmlFor="edit_id_number" className="text-xs">ID Number</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="edit_id_number" className="text-sm font-medium">ID Number</Label>
                   <Input
                     id="edit_id_number"
                     inputMode="numeric"
                     value={editingListing.idNumber || ""}
-                    className="h-7 px-2 text-sm"
+                    className="h-11 px-4 text-base"
+                    placeholder="10 digits"
                     onChange={(e) => setEditingListing((prev: any) => ({ ...prev, idNumber: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
                   />
                 </div>
-                <div>
-                  <Label htmlFor="edit_deed_number" className="text-xs">Deed Number</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="edit_deed_number" className="text-sm font-medium">Deed Number</Label>
                   <Input
                     id="edit_deed_number"
                     inputMode="numeric"
                     value={editingListing.deedNumber || ""}
-                    className="h-7 px-2 text-sm"
+                    className="h-11 px-4 text-base"
+                    placeholder="10 digits"
                     onChange={(e) => setEditingListing((prev: any) => ({ ...prev, deedNumber: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
                   />
                 </div>
               </div>
-              <div className="grid md:grid-cols-3 gap-3">
-                <div>
-                  <Label htmlFor="edit_bedrooms" className="text-xs">Bedrooms</Label>
+              <div className="grid md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit_bedrooms" className="text-sm font-medium">Bedrooms</Label>
                   <Input
                     id="edit_bedrooms"
                     type="number"
                     defaultValue={editingListing.bedrooms ?? ""}
-                    className="h-7 px-2 text-sm"
+                    className="h-11 px-4 text-base"
                     onChange={(e) => (editingListing.bedrooms = Number(e.target.value))}
                   />
                 </div>
-                <div>
-                  <Label htmlFor="edit_bathrooms" className="text-xs">Bathrooms</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="edit_bathrooms" className="text-sm font-medium">Bathrooms</Label>
                   <Input
                     id="edit_bathrooms"
                     type="number"
                     defaultValue={editingListing.bathrooms ?? ""}
-                    className="h-7 px-2 text-sm"
+                    className="h-11 px-4 text-base"
                     onChange={(e) => (editingListing.bathrooms = Number(e.target.value))}
                   />
                 </div>
-                <div>
-                  <Label htmlFor="edit_area" className="text-xs">Area (m²)</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="edit_area" className="text-sm font-medium">Area (m²)</Label>
                   <Input
                     id="edit_area"
                     type="number"
                     defaultValue={editingListing.area ?? ""}
-                    className="h-7 px-2 text-sm"
+                    className="h-11 px-4 text-base"
                     onChange={(e) => (editingListing.area = Number(e.target.value))}
                   />
                 </div>
               </div>
-              <div>
-                <Label className="text-xs">Property Type</Label>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Property Type</Label>
                 <Select
                   value={editingListing.type || "APARTMENT"}
                   onValueChange={(v: "APARTMENT" | "STUDIO" | "OTHER") => setEditingListing((prev: any) => ({ ...prev, type: v }))}
                 >
-                  <SelectTrigger size="sm" className="h-7 text-sm max-w-md">
+                  <SelectTrigger className="h-11 text-base max-w-md">
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1154,42 +1168,42 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid md:grid-cols-3 gap-3">
-                <div className="flex items-center gap-2">
+              <div className="grid md:grid-cols-3 gap-5">
+                <div className="flex items-center gap-3 p-3 bg-secondary/20 rounded-lg">
                   <Switch
                     id="edit_female_only"
                     checked={!!editingListing.femaleOnly}
                     onCheckedChange={(v: boolean) => setEditingListing((prev: any) => ({ ...prev, femaleOnly: v }))}
                   />
-                  <Label htmlFor="edit_female_only">Female Only</Label>
+                  <Label htmlFor="edit_female_only" className="text-base font-medium cursor-pointer">Female Only</Label>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3 p-3 bg-secondary/20 rounded-lg">
                   <Switch
                     id="edit_student_discount"
                     checked={!!editingListing.studentDiscount}
                     onCheckedChange={(v: boolean) => setEditingListing((prev: any) => ({ ...prev, studentDiscount: v }))}
                   />
-                  <Label htmlFor="edit_student_discount">Student Discount</Label>
+                  <Label htmlFor="edit_student_discount" className="text-base font-medium cursor-pointer">Student Discount</Label>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3 p-3 bg-secondary/20 rounded-lg">
                   <Switch
                     id="edit_roommates_allowed"
                     checked={!!editingListing.roommatesAllowed}
                     onCheckedChange={(v: boolean) => setEditingListing((prev: any) => ({ ...prev, roommatesAllowed: v }))}
                   />
-                  <Label htmlFor="edit_roommates_allowed">Roommates Allowed</Label>
+                  <Label htmlFor="edit_roommates_allowed" className="text-base font-medium cursor-pointer">Roommates Allowed</Label>
                 </div>
               </div>
               </TabsContent>
-              <TabsContent value="amenities">
+              <TabsContent value="amenities" className="space-y-5">
               {/* Amenities editor for edit dialog */}
               <div>
-                <Label>Amenities (optional)</Label>
-                <div className="mt-2 space-y-5">
+                <Label className="text-base font-medium">Amenities (optional)</Label>
+                <div className="mt-4 space-y-6">
                   {/* Quick-pick common amenities */}
                   <div>
-                    <Label className="text-sm">Common amenities</Label>
-                    <div className="mt-2 flex flex-wrap gap-2">
+                    <Label className="text-sm font-medium mb-3 block">Common amenities</Label>
+                    <div className="flex flex-wrap gap-3">
                       {COMMON_AMENITIES.map((opt) => {
                         const selected = Array.isArray(editingListing.amenities) && editingListing.amenities.some((a: any) => a.title === opt.title);
                         return (

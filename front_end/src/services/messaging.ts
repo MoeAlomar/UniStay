@@ -130,6 +130,14 @@ export async function getMessages(conversation: Conversation, pageSize = 50) {
   return page.items as Message[];
 }
 
+// Return the SDK paginator to support infinite scroll (older page fetching)
+export async function getMessagesPage(conversation: Conversation, pageSize = 50) {
+  // Twilio Conversations returns a Paginator<Message>
+  // We keep it as `any` to avoid pulling in SDK runtime types here.
+  const paginator = await conversation.getMessages(pageSize);
+  return paginator as any;
+}
+
 /** Use the SDK-level read horizon for the current participant */
 export async function markAllRead(conversation: Conversation) {
   try {
