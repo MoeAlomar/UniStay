@@ -28,3 +28,4 @@ yarl==1.22.0
 python-dotenv==1.0.1
 drf-yasg>=1.21.0
 psycopg2-binary>=2.9
+gunicorn>=22.0.0
