@@ -10,8 +10,13 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
-from dotenv import load_dotenv  # Load .env locally
-load_dotenv()
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    load_dotenv = None
+
+if load_dotenv:
+    load_dotenv()
 import cloudinary
 import cloudinary.uploader
 import cloudinary.api
@@ -26,15 +31,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ==============================
 # Security & Debug
 # ==============================
-SECRET_KEY = os.environ.get("SECRET_KEY")
-if not SECRET_KEY:
-    if os.environ.get("DEBUG", "True") == "True":
-        SECRET_KEY = "django-insecure-dev-only"
-    else:
-        raise RuntimeError("SECRET_KEY is not set. Provide it via environment.")
+SECRET_KEY = os.getenv("SECRET_KEY")
+DEBUG = os.getenv("DEBUG", "False").lower() == "true"
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
 
-DEBUG = os.environ.get("DEBUG", "True") == "True"
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",")
 
 # ==============================
 # Installed Apps
@@ -162,37 +162,29 @@ WSGI_APPLICATION = "darek_web.wsgi.application"
 # Database
 # ==============================
 
-# Previous local SQLite configuration (kept for reference):
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
-
-# PostgreSQL configuration via environment variables
-DB_NAME = os.getenv("DB_NAME")
-DB_USER = os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
-DB_HOST = os.getenv("DB_HOST")
-DB_PORT = os.getenv("DB_PORT")
-
-if not all([DB_NAME, DB_USER, DB_PASSWORD]):
-    raise RuntimeError(
-        "PostgreSQL environment variables are missing. "
-        "Please set POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD (and optionally POSTGRES_HOST, POSTGRES_PORT) in .env."
-    )
+# Database configuration (works with Railway's Postgres vars)
+DB_NAME = os.getenv("DB_NAME") or os.getenv("POSTGRES_DB") or os.getenv("PGDATABASE")
+DB_USER = os.getenv("DB_USER") or os.getenv("POSTGRES_USER") or os.getenv("PGUSER")
+DB_PASSWORD = os.getenv("DB_PASSWORD") or os.getenv("POSTGRES_PASSWORD") or os.getenv("PGPASSWORD")
+DB_HOST = os.getenv("DB_HOST") or os.getenv("POSTGRES_HOST") or os.getenv("PGHOST", "localhost")
+DB_PORT = os.getenv("DB_PORT") or os.getenv("POSTGRES_PORT") or os.getenv("PGPORT", "5432")
 
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("DB_NAME"),
-        "USER": os.getenv("DB_USER"),
-        "PASSWORD": os.getenv("DB_PASSWORD"),
-        "HOST": os.getenv("DB_HOST"),
-        "PORT": os.getenv("DB_PORT"),
+        "NAME": DB_NAME,
+        "USER": DB_USER,
+        "PASSWORD": DB_PASSWORD,
+        "HOST": DB_HOST,
+        "PORT": DB_PORT,
     }
 }
+if not all([DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT]):
+    raise RuntimeError(
+        "Database environment variables are missing. "
+        "Expected DB_NAME/DB_USER/DB_PASSWORD/DB_HOST/DB_PORT "
+        "or POSTGRES_/PG* equivalents."
+    )
 
 # ==============================
 # Password Validation
