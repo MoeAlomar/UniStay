@@ -255,10 +255,15 @@ TWILIO_AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN")
 TWILIO_API_KEY_SID = os.environ.get("TWILIO_API_KEY_SID")
 TWILIO_API_SECRET = os.environ.get("TWILIO_API_SECRET")
 TWILIO_CONVERSATIONS_SERVICE_SID = os.environ.get("TWILIO_CONVERSATIONS_SERVICE_SID")
+SECURE_SSL_REDIRECT = False
 
-# ==============================
-# Security (Prod)
-# ==============================
-SECURE_SSL_REDIRECT = not DEBUG
+# Secure cookies only in production
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
+
+# Tell Django to trust Railway's X-Forwarded-Proto header
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Optional but recommended
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
