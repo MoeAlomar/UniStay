@@ -54,16 +54,16 @@ export function PropertyCard({
       className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
       onClick={onClick}
     >
-      <div className="relative h-48 overflow-hidden">
+      <div className="relative h-40 sm:h-44 md:h-48 overflow-hidden">
         <ImageWithFallback
           src={image}
           alt=""
           data-cloudinary-transform="c_fill,w_600,dpr_auto"
           className="w-full h-full object-cover"
         />
-        <div className="absolute top-3 right-3 flex items-center gap-2">
+        <div className="absolute top-2 sm:top-3 right-2 sm:right-3 flex items-center gap-1.5 sm:gap-2">
           <button
-            className="bg-card rounded-full p-2 hover:bg-secondary transition-colors"
+            className="bg-card rounded-full p-1.5 sm:p-2 hover:bg-secondary transition-colors shadow-md"
             onClick={(e) => {
               e.stopPropagation();
               const next = toggleFavorite(id);
@@ -73,58 +73,58 @@ export function PropertyCard({
             aria-label={isFav ? "Remove from favorites" : "Add to favorites"}
           >
             <Heart
-              className={isFav ? "w-4 h-4 text-red-600" : "w-4 h-4 text-foreground"}
+              className={isFav ? "w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-600" : "w-3.5 h-3.5 sm:w-4 sm:h-4 text-foreground"}
               fill={isFav ? "currentColor" : "none"}
             />
           </button>
           <button
-            className="bg-card rounded-full p-2 hover:bg-secondary transition-colors"
+            className="bg-card rounded-full p-1.5 sm:p-2 hover:bg-secondary transition-colors shadow-md"
             onClick={(e) => {
               e.stopPropagation();
               setShowShare(true);
             }}
             aria-label="Share listing"
           >
-            <Share2 className="w-4 h-4 text-foreground" />
+            <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-foreground" />
           </button>
         </div>
-        <div className="absolute bottom-3 left-3 flex gap-2 flex-wrap">
+        <div className="absolute bottom-2 sm:bottom-3 left-2 sm:left-3 flex gap-1 sm:gap-2 flex-wrap max-w-[calc(100%-1rem)]">
           {status === "AVAILABLE" && (
-            <Badge variant="success">Available</Badge>
+            <Badge variant="success" className="text-xs py-0.5 px-1.5 sm:px-2">Available</Badge>
           )}
           {status === "RESERVED" && (
-            <Badge variant="danger">Reserved</Badge>
+            <Badge variant="danger" className="text-xs py-0.5 px-1.5 sm:px-2">Reserved</Badge>
           )}
           {status === "DRAFT" && (
-            <Badge variant="gray">Draft</Badge>
+            <Badge variant="gray" className="text-xs py-0.5 px-1.5 sm:px-2">Draft</Badge>
           )}
           {femaleOnly && (
-            <Badge className="bg-purple-600 hover:bg-purple-700">
+            <Badge className="bg-purple-600 hover:bg-purple-700 text-xs py-0.5 px-1.5 sm:px-2">
               Female Only
             </Badge>
           )}
           {roommatesAllowed && (
-            <Badge variant="warning">Roommates Allowed</Badge>
+            <Badge variant="warning" className="text-xs py-0.5 px-1.5 sm:px-2">Roommates Allowed</Badge>
           )}
           {studentDiscount && (
-            <Badge className="bg-blue-600 hover:bg-blue-700">
+            <Badge className="bg-blue-600 hover:bg-blue-700 text-xs py-0.5 px-1.5 sm:px-2">
               Student Discount
             </Badge>
           )}
         </div>
       </div>
 
-      <CardContent className="p-4">
-        <div className="flex justify-between items-start mb-2">
-          <h3 className="text-foreground">{title}</h3>
-          <span className="text-primary whitespace-nowrap ml-2">
+      <CardContent className="p-3 sm:p-4">
+        <div className="flex justify-between items-start mb-1.5 sm:mb-2">
+          <h3 className="text-foreground text-sm sm:text-base leading-tight pr-2">{title}</h3>
+          <span className="text-primary whitespace-nowrap text-sm sm:text-base font-semibold">
             {price.toLocaleString()} SAR/mo
           </span>
         </div>
 
-        <div className="flex items-center gap-1 text-muted-foreground text-sm mb-1">
-          <MapPin className="w-4 h-4" />
-          <span>{location}</span>
+        <div className="flex items-center gap-1 text-muted-foreground text-xs sm:text-sm mb-1">
+          <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <span className="truncate">{location}</span>
         </div>
 
         {/* Distance from campus removed as requested */}

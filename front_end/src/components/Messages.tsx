@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "./ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./ui/sheet";
 import { Input } from "./ui/input";
 import { ScrollArea } from "./ui/scroll-area";
 import { Send, Search, Plus } from "lucide-react";
@@ -613,8 +614,7 @@ export function Messages() {
         <h1 className="mb-6 text-foreground">Messages</h1>
         <Card className="overflow-hidden">
           <div className="grid md:grid-cols-3 h-[calc(100vh-200px)]">
-            {/* Left: conversations + Start new chat */}
-            <div className="border-r border-border bg-card">
+            <div className="hidden md:block border-r border-border bg-card">
               <div className="p-4 border-b border-border space-y-3">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -697,10 +697,63 @@ export function Messages() {
               </ScrollArea>
             </div>
 
-            {/* Right: chat */}
             <div className="md:col-span-2 flex flex-col bg-secondary">
               <div className="p-4 bg-card border-b border-border">
                 <div className="flex items-center gap-3">
+                  <div className="md:hidden">
+                    <Sheet>
+                      <SheetTrigger asChild>
+                        <Button variant="outline" size="sm">Conversations</Button>
+                      </SheetTrigger>
+                      <SheetContent side="left" className="w-11/12 sm:max-w-sm">
+                        <SheetHeader>
+                          <SheetTitle>Conversations</SheetTitle>
+                        </SheetHeader>
+                        <div className="px-4 py-4 space-y-4">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                            <Input placeholder="Search conversations..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" />
+                          </div>
+                          <div className="flex gap-2">
+                            <Input placeholder="Other user's username..." value={newUsername} onChange={(e) => setNewUsername(e.target.value)} />
+                            <Button onClick={startChat} disabled={!newUsername.trim() || creating}>
+                              <Plus className="w-4 h-4 mr-1" />
+                              Start
+                            </Button>
+                          </div>
+                          {createErr ? <p className="text-xs text-red-600">{createErr}</p> : null}
+                          <div className="divide-y divide-border">
+                            {filteredConversations.map((conversation) => (
+                              <button key={conversation.id} onClick={() => handleSelectConversation(conversation.id)} className={`w-full p-4 text-left hover:bg-secondary transition-colors ${selectedSid === conversation.id ? "bg-secondary" : ""}`}>
+                                <div className="flex items-start gap-3">
+                                  <Avatar>
+                                    {(() => {
+                                      const au = listAvatars.get(conversation.id);
+                                      return au ? (
+                                        <AvatarImage src={transformAvatar(au)} alt={conversation.name} />
+                                      ) : null;
+                                    })()}
+                                    <AvatarFallback>{conversation.avatar}</AvatarFallback>
+                                  </Avatar>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between mb-1">
+                                      <span>{conversation.name}</span>
+                                      <span className="text-xs text-muted-foreground">{conversation.timestamp}</span>
+                                    </div>
+                                    {conversation.listingTitle && (
+                                      <p className="text-xs text-primary mb-1">{conversation.listingTitle}</p>
+                                    )}
+                                    <p className={`text-sm truncate ${conversation.unread ? "text-foreground" : "text-muted-foreground"}`}>{conversation.lastMessage || "No messages yet"}</p>
+                                  </div>
+                                  {conversation.unread && <div className="w-2 h-2 bg-primary rounded-full mt-2" />}
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </SheetContent>
+                    </Sheet>
+                  </div>
                   {participants.length > 2 ? (
                     <div className="flex items-center gap-3">
                       <Avatar>

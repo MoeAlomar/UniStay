@@ -55,13 +55,13 @@ export function NavigationHeader({
 
   return (
     <header className="bg-card border-b border-border sticky top-0 z-50 shadow-sm">
-      <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-8">
-          <button onClick={() => onNavigate("landing")} className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-white">DR</span>
+      <div className="container mx-auto px-3 sm:px-4 py-2 sm:py-4 flex items-center justify-between">
+        <div className="flex items-center gap-2 sm:gap-8">
+          <button onClick={() => onNavigate("landing")} className="flex items-center gap-1.5 sm:gap-2">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary rounded-lg flex items-center justify-center">
+              <span className="text-white text-sm sm:text-base">DR</span>
             </div>
-            <span className="text-xl text-foreground">Darek</span>
+            <span className="text-lg sm:text-xl text-foreground">Darek</span>
           </button>
 
           <nav className="hidden md:flex items-center gap-6">
@@ -107,29 +107,29 @@ export function NavigationHeader({
           </nav>
         </div>
 
-        <div className="flex items-center gap-3 relative">
-          {/* Desktop theme toggle */}
+        <div className="flex items-center gap-1.5 sm:gap-3 relative">
+          {/* Theme toggle - visible on all sizes */}
           <Button
             variant="outline"
             size="icon"
             aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
             onClick={() => setIsDark((prev) => !prev)}
-            className="rounded-md hidden md:inline-flex"
+            className="rounded-md h-8 w-8 sm:h-9 sm:w-9 md:inline-flex"
           >
-            {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            {isDark ? <Sun className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5" /> : <Moon className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5" />}
           </Button>
 
-          {/* Desktop auth controls */}
+          {/* Auth controls - visible on all sizes */}
           {!isLoggedIn ? (
             <>
               <Button
                 variant="ghost"
                 onClick={() => onNavigate("login")}
-                className="text-foreground hidden md:inline-flex"
+                className="text-foreground h-8 px-2 text-xs sm:h-9 sm:px-3 sm:text-sm md:text-base md:inline-flex"
               >
                 Login
               </Button>
-              <Button onClick={() => onNavigate("register")} className="hidden md:inline-flex">Register</Button>
+              <Button onClick={() => onNavigate("register")} className="h-8 px-2 text-xs sm:h-9 sm:px-3 sm:text-sm md:text-base md:inline-flex">Register</Button>
             </>
           ) : (
             <button
@@ -140,9 +140,9 @@ export function NavigationHeader({
                 } catch (_) {}
               }}
               aria-label="Profile"
-              className="rounded-md border border-border p-1 hover:bg-muted transition-colors hidden md:inline-flex"
+              className="rounded-md border border-border p-0.5 sm:p-1 hover:bg-muted transition-colors md:inline-flex"
             >
-              <Avatar className="size-8">
+              <Avatar className="size-6 sm:size-7 md:size-8">
                 {user?.avatar_url ? (
                   <AvatarImage
                     src={transformAvatar(user.avatar_url)}
@@ -153,7 +153,7 @@ export function NavigationHeader({
                     decoding="async"
                   />
                 ) : null}
-                <AvatarFallback>
+                <AvatarFallback className="text-xs sm:text-sm">
                   {(() => {
                     const fn = user?.first_name?.trim() || "";
                     const ln = user?.last_name?.trim() || "";
@@ -168,8 +168,8 @@ export function NavigationHeader({
           {/* Mobile drawer */}
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open menu">
-                <Menu className="w-5 h-5" />
+              <Button variant="ghost" size="icon" className="md:hidden h-8 w-8 sm:h-9 sm:w-9" aria-label="Open menu">
+                <Menu className="w-4 h-4 sm:w-5 sm:h-5" />
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-[85vw] sm:w-[360px]">
@@ -184,7 +184,7 @@ export function NavigationHeader({
                 {/* Mobile theme toggle */}
                 <div className="flex items-center justify-between py-1">
                   <span className="text-sm text-muted-foreground">Dark mode</span>
-                  <Switch checked={isDark} onCheckedChange={(val) => setIsDark(Boolean(val))} />
+                  <Switch checked={isDark} onCheckedChange={(val: boolean) => setIsDark(Boolean(val))} />
                 </div>
 
                 {/* Navigation links */}

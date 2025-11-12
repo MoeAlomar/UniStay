@@ -258,7 +258,7 @@ export function ListingDetails({ propertyId, onNavigate }: ListingDetailsProps) 
 
         {/* Image Carousel */}
         <Card className="mb-6 overflow-hidden">
-          <div className="relative h-96">
+          <div className="relative h-64 md:h-96">
             {/* Prefetch adjacent carousel images for snappier navigation */}
             {(() => {
               const next = carouselImages[currentImageIndex + 1];
@@ -613,8 +613,7 @@ export function ListingDetails({ propertyId, onNavigate }: ListingDetailsProps) 
             </Card>
           </div>
 
-          {/* Sidebar */}
-          <div>
+          <div className="hidden lg:block">
             <Card className="sticky top-24">
               <CardContent className="p-6">
                 <h3 className="mb-4 text-foreground">Property Owner</h3>
@@ -680,6 +679,17 @@ export function ListingDetails({ propertyId, onNavigate }: ListingDetailsProps) 
                 {/* Removed Schedule Viewing for now */}
               </CardContent>
             </Card>
+          </div>
+        </div>
+        <div className="fixed inset-x-0 bottom-0 md:hidden border-t border-border bg-card/95 backdrop-blur px-4 py-3">
+          <div className="container mx-auto flex gap-2">
+            <Button className="flex-1" onClick={() => setShowContactDialog(true)}>
+              <MessageSquare className="w-4 h-4 mr-2" />
+              Contact
+            </Button>
+            <Button variant="outline" className="flex-1" onClick={() => setShowOwnerProfile(true)}>
+              View Owner
+            </Button>
           </div>
         </div>
       </div>

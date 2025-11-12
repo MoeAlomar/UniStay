@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { PropertyCard } from "./PropertyCard";
 import { Button } from "./ui/button";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./ui/sheet";
 import { Slider } from "./ui/slider";
 import { Checkbox } from "./ui/checkbox";
 import { Label } from "./ui/label";
@@ -420,12 +421,84 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setShowMap(!showMap)}
-                    >
+                <div className="flex items-center gap-2">
+                  <div className="md:hidden">
+                    <Sheet>
+                      <SheetTrigger asChild>
+                        <Button variant="outline" className="gap-2">
+                          <SlidersHorizontal className="w-4 h-4" />
+                          Filters
+                        </Button>
+                      </SheetTrigger>
+                      <SheetContent side="left" className="w-11/12 sm:max-w-sm">
+                        <SheetHeader>
+                          <SheetTitle>Filters</SheetTitle>
+                        </SheetHeader>
+                        <div className="px-4 py-4">
+                          <div className="mb-6">
+                            <Label className="mb-3 block">
+                              Price Range: {priceRange[0]} - {priceRange[1]} SAR
+                            </Label>
+                            <Slider
+                              min={0}
+                              max={5000}
+                              step={100}
+                              value={priceRange}
+                              onValueChange={setPriceRange}
+                              className="mb-2"
+                            />
+                          </div>
+                          <div className="mb-6">
+                            <Label className="mb-3 block">Property Type</Label>
+                            <div className="space-y-3">
+                              <div className="flex items-center gap-2">
+                                <Checkbox id="m-studio" checked={typeStudio} onCheckedChange={(v: boolean | "indeterminate") => setTypeStudio(!!v)} />
+                                <label htmlFor="m-studio" className="text-sm">Studio</label>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Checkbox id="m-other" checked={typeShared} onCheckedChange={(v: boolean | "indeterminate") => setTypeShared(!!v)} />
+                                <label htmlFor="m-other" className="text-sm">Other</label>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Checkbox id="m-apartment" checked={typeApartment} onCheckedChange={(v: boolean | "indeterminate") => setTypeApartment(!!v)} />
+                                <label htmlFor="m-apartment" className="text-sm">Apartment</label>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="mb-6">
+                            <Label className="mb-3 block">Features</Label>
+                            <div className="space-y-3">
+                              <div className="flex items-center gap-2">
+                                <Checkbox id="m-available-only" checked={availableOnly} onCheckedChange={(v: boolean | "indeterminate") => setAvailableOnly(!!v)} />
+                                <label htmlFor="m-available-only" className="text-sm">Available Only</label>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Checkbox id="m-female" checked={femaleOnly} onCheckedChange={(v: boolean | "indeterminate") => setFemaleOnly(!!v)} />
+                                <label htmlFor="m-female" className="text-sm">Female Only</label>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Checkbox id="m-discount" checked={studentDiscount} onCheckedChange={(v: boolean | "indeterminate") => setStudentDiscount(!!v)} />
+                                <label htmlFor="m-discount" className="text-sm">Student Discount</label>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Checkbox id="m-roommates" checked={roommatesOnly} onCheckedChange={(v: boolean | "indeterminate") => setRoommatesOnly(!!v)} />
+                                <label htmlFor="m-roommates" className="text-sm">Roommates Allowed</label>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="space-y-3">
+                            <Button onClick={applyFilters} className="w-full bg-green-600 hover:bg-green-700">Apply Filters</Button>
+                            <Button variant="outline" onClick={resetFilters} className="w-full">Reset Filters</Button>
+                          </div>
+                        </div>
+                      </SheetContent>
+                    </Sheet>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setShowMap(!showMap)}
+                  >
                       <MapIcon className="w-4 h-4" />
                     </Button>
                     <Button
