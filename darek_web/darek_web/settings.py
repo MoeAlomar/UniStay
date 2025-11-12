@@ -117,7 +117,7 @@ EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD")
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL")
 
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://127.0.0.1:5173")
-VERIFICATION_BASE_URL = "https://darek.up.railway.app"
+VERIFICATION_BASE_URL = "https://dareksa.up.railway.app"
 
 # ==============================
 # CORS
@@ -134,7 +134,8 @@ CORS_ALLOWED_ORIGINS = [
     # "http://127.0.0.1:3002",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "https://darek-frontend.up.railway.app",
+    "https://dareksa.up.railway.app",
+    "https://darek.up.railway.app",
 ]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = list(default_headers) + ["authorization", "content-type"]
