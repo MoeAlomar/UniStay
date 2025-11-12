@@ -10,13 +10,6 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
-try:
-    from dotenv import load_dotenv
-except ImportError:
-    load_dotenv = None
-
-if load_dotenv:
-    load_dotenv()
 import cloudinary
 import dj_database_url
 import cloudinary.uploader
@@ -28,6 +21,11 @@ from pathlib import Path
 
 # Build paths inside the project
 BASE_DIR = Path(__file__).resolve().parent.parent
+try:
+    from dotenv import load_dotenv
+    load_dotenv(dotenv_path=BASE_DIR / ".env")   # <<— explicit path avoids the AssertionError
+except Exception:
+    pass
 
 # ==============================
 # Security & Debug
@@ -126,18 +124,24 @@ VERIFICATION_BASE_URL = "https://darek.up.railway.app"
 # ==============================
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 CORS_ALLOWED_ORIGINS = [
+    # "http://localhost:5173",
+    # "http://127.0.0.1:5173",
+    # "http://localhost:3000",
+    # "http://127.0.0.1:3000",
+    # "http://localhost:3001",
+    # "http://127.0.0.1:3001",
+    # "http://localhost:3002",
+    # "http://127.0.0.1:3002",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:3001",
-    "http://127.0.0.1:3001",
-    "http://localhost:3002",
-    "http://127.0.0.1:3002",
+    "https://darek-frontend.up.railway.app",
 ]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = list(default_headers) + ["authorization", "content-type"]
-
+CSRF_TRUSTED_ORIGINS = [
+    "https://darek.up.railway.app/",  # ✅ needed if using cookies/session
+    "https://dareksa.up.railway.app",           # your backend domain too
+]
 # ==============================
 # Templates
 # ==============================
@@ -165,21 +169,21 @@ WSGI_APPLICATION = "darek_web.wsgi.application"
 DATABASE_URL = os.getenv('DATABASE_URL')
 
 if DATABASE_URL:
-    # Use Railway's DATABASE_URL directly
     DATABASES = {
         'default': dj_database_url.config(
             default=DATABASE_URL,
             conn_max_age=600,
             conn_health_checks=True,
+            ssl_require=True,
         )
     }
 else:
     # Fallback to individual variables for local development
-    DB_NAME = os.getenv("POSTGRES_DB") or os.getenv("PGDATABASE") or os.getenv("DB_NAME")
-    DB_USER = os.getenv("POSTGRES_USER") or os.getenv("PGUSER") or os.getenv("DB_USER")
+    DB_NAME = os.getenv("DB_NAME") or os.getenv("POSTGRES_DB") or os.getenv("PGDATABASE")
+    DB_USER =  os.getenv("DB_USER") or os.getenv("POSTGRES_USER") or os.getenv("PGUSER")
     DB_PASSWORD = os.getenv("DB_PASSWORD") or os.getenv("POSTGRES_PASSWORD") or os.getenv("PGPASSWORD")
-    DB_HOST = os.getenv("POSTGRES_HOST") or os.getenv("PGHOST", "localhost") or os.getenv("DB_HOST")
-    DB_PORT = os.getenv("POSTGRES_PORT") or os.getenv("PGPORT", "5432") or os.getenv("DB_PORT")
+    DB_HOST = os.getenv("DB_HOST") or os.getenv("POSTGRES_HOST") or os.getenv("PGHOST", "localhost") 
+    DB_PORT = os.getenv("DB_PORT") or os.getenv("POSTGRES_PORT") or os.getenv("PGPORT", "5432")
 
     DATABASES = {
         "default": {
