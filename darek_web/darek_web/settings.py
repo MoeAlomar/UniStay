@@ -119,7 +119,7 @@ EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD")
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL")
 
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://127.0.0.1:5173")
-VERIFICATION_BASE_URL = "http://127.0.0.1:8000"
+VERIFICATION_BASE_URL = "https://darek.up.railway.app"
 
 # ==============================
 # CORS
@@ -175,11 +175,11 @@ if DATABASE_URL:
     }
 else:
     # Fallback to individual variables for local development
-    DB_NAME = os.getenv("DB_NAME") or os.getenv("POSTGRES_DB") or os.getenv("PGDATABASE")
-    DB_USER = os.getenv("DB_USER") or os.getenv("POSTGRES_USER") or os.getenv("PGUSER")
+    DB_NAME = os.getenv("POSTGRES_DB") or os.getenv("PGDATABASE") or os.getenv("DB_NAME")
+    DB_USER = os.getenv("POSTGRES_USER") or os.getenv("PGUSER") or os.getenv("DB_USER")
     DB_PASSWORD = os.getenv("DB_PASSWORD") or os.getenv("POSTGRES_PASSWORD") or os.getenv("PGPASSWORD")
-    DB_HOST = os.getenv("DB_HOST") or os.getenv("POSTGRES_HOST") or os.getenv("PGHOST", "localhost")
-    DB_PORT = os.getenv("DB_PORT") or os.getenv("POSTGRES_PORT") or os.getenv("PGPORT", "5432")
+    DB_HOST = os.getenv("POSTGRES_HOST") or os.getenv("PGHOST", "localhost") or os.getenv("DB_HOST")
+    DB_PORT = os.getenv("POSTGRES_PORT") or os.getenv("PGPORT", "5432") or os.getenv("DB_PORT")
 
     DATABASES = {
         "default": {
