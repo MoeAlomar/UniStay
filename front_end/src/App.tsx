@@ -1,3 +1,4 @@
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useSearchParams, useNavigate, Outlet } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { NavigationHeader } from "./components/NavigationHeader";
 import { LandingPage } from "./components/LandingPage";
@@ -13,70 +14,37 @@ import { ProfilePage } from "./components/ProfilePage";
 import { storage } from "./services/api";
 import { profile, type User } from "./services/auth";
 
-type Page =
-  | "landing"
-  | "search"
-  | "listing"
-  | "favorites"
-  | "messages"
-  | "roommate"
-  | "dashboard"
-  | "login"
-  | "register"
-  | "verification"
-  | "profile";
+// Legacy page routing type kept for reference; now replaced by react-router-dom
+// type Page =
+//   | "landing"
+//   | "search"
+//   | "listing"
+//   | "favorites"
+//   | "messages"
+//   | "roommate"
+//   | "dashboard"
+//   | "login"
+//   | "register"
+//   | "verification"
+//   | "profile";
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState<Page>("landing");
-  const [selectedPropertyId, setSelectedPropertyId] = useState<string>("");
+  return (
+    <BrowserRouter>
+      <AppRoutes />
+    </BrowserRouter>
+  );
+}
+
+function AppRoutes() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userType, setUserType] = useState<"student" | "landlord">("student");
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
-  // Deep-link support: if URL has ?listing=ID, open ListingDetails directly
-  useEffect(() => {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const id = params.get("listing");
-      if (id) {
-        setSelectedPropertyId(id);
-        setCurrentPage("listing");
-      }
-    } catch (_) {}
-  }, []);
-
-  const handleNavigate = (page: string, propertyId?: string) => {
-    setCurrentPage(page as Page);
-    if (propertyId) {
-      setSelectedPropertyId(propertyId);
-    }
-
-    // Simulate login when navigating to dashboard or after verification
-    if (page === "dashboard") {
-      setIsLoggedIn(true);
-      setUserType("landlord");
-    } else if (page === "landing" && currentPage === "verification") {
-      setIsLoggedIn(true);
-      setUserType("student");
-    }
-
-    // Scroll to top on navigation
-    window.scrollTo(0, 0);
-
-    // Reflect navigation in URL for easy sharing
-    try {
-      if ((page as Page) === "listing" && (propertyId || selectedPropertyId)) {
-        const id = propertyId || selectedPropertyId;
-        const url = `/?listing=${id}`;
-        window.history.pushState(null, "", url);
-      } else {
-        const clean = window.location.pathname || "/";
-        window.history.pushState(null, "", clean);
-      }
-    } catch (_) {}
-  };
-
-  // Sync auth state with stored tokens and fetch user profile for role
+  // Sync auth state with stored tokens and fetch user profile
   useEffect(() => {
     const syncAuth = async () => {
       if (storage.access) {
@@ -86,9 +54,8 @@ export default function App() {
           setCurrentUser(u);
           if (u.role === "landlord") setUserType("landlord");
           else setUserType("student");
-        } catch (e) {
-          // If profile fails, keep the login state; tokens may be invalid
-          // Optionally handle token clearing, but keep minimal for now
+        } catch (_) {
+          // keep login state; tokens may be invalid
         }
       } else {
         setIsLoggedIn(false);
@@ -96,59 +63,152 @@ export default function App() {
       }
     };
     syncAuth();
-  }, [currentPage]);
+  }, [location.pathname]);
 
-  const showHeader =
-    currentPage !== "login" &&
-    currentPage !== "register" &&
-    currentPage !== "verification";
+  const handleNavigate = (page: string, propertyId?: string) => {
+    switch (page) {
+      case "landing":
+        navigate("/");
+        break;
+      case "search":
+        navigate("/search");
+        break;
+      case "favorites":
+        navigate("/favorites");
+        break;
+      case "listing":
+        navigate(propertyId ? `/listing?listing=${propertyId}` : "/");
+        break;
+      case "messages":
+        navigate("/messages");
+        break;
+      case "roommate":
+        navigate("/roommate");
+        break;
+      case "dashboard":
+        navigate("/owner/dashboard");
+        break;
+      case "login":
+        navigate("/users/login");
+        break;
+      case "register":
+        navigate("/users/register");
+        break;
+      case "verification":
+        navigate("/users/verify");
+        break;
+      case "profile":
+        navigate("/users/profile");
+        break;
+      default:
+        navigate("/");
+        break;
+    }
+    window.scrollTo(0, 0);
+  };
+
+  const currentPageForHeader = (() => {
+    const p = location.pathname;
+    if (p === "/") return "landing";
+    if (p.startsWith("/search")) return "search";
+    if (p.startsWith("/favorites")) return "favorites";
+    if (p.startsWith("/listing")) return "listing";
+    if (p.startsWith("/messages")) return "messages";
+    if (p.startsWith("/roommate")) return "roommate";
+    if (p.startsWith("/owner")) return "dashboard";
+    if (p === "/users/login") return "login";
+    if (p === "/users/register") return "register";
+    if (p === "/users/verify") return "verification";
+    if (p === "/users/profile") return "profile";
+    return "landing";
+  })();
+
+  return (
+    <Routes>
+      {/* Layout with optional header */}
+      <Route
+        element={
+          <Layout
+            onNavigate={handleNavigate}
+            isLoggedIn={isLoggedIn}
+            userType={userType}
+            currentUser={currentUser || undefined}
+          />
+        }
+      >
+        <Route
+          path="/"
+          element={<LandingPage onNavigate={handleNavigate} isLoggedIn={isLoggedIn} userType={userType} />}
+        />
+        <Route path="/search" element={<SearchResults onNavigate={handleNavigate} />} />
+        <Route path="/favorites" element={<FavoritesPage onNavigate={handleNavigate} />} />
+        <Route path="/listing" element={<ListingRoute onNavigate={handleNavigate} />} />
+        <Route path="/messages" element={<Messages />} />
+        <Route path="/roommate" element={<RoommateMatching onNavigate={handleNavigate} />} />
+        <Route path="/owner/dashboard" element={<OwnerDashboard onNavigate={handleNavigate} />} />
+        <Route path="/users/profile" element={<ProfilePage user={currentUser || undefined} onNavigate={handleNavigate} />} />
+      </Route>
+
+      {/* Auth-specific routes without header via Layout hide logic */}
+      <Route path="/users/login" element={<LoginRegister onNavigate={handleNavigate} mode="login" />} />
+      <Route path="/users/register" element={<LoginRegister onNavigate={handleNavigate} mode="register" />} />
+      <Route path="/users/verify" element={<Verification onNavigate={handleNavigate} />} />
+
+      {/* Redirect unknown paths */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
+function Layout({
+  onNavigate,
+  isLoggedIn,
+  userType,
+  currentUser,
+}: {
+  onNavigate: (page: string, propertyId?: string) => void;
+  isLoggedIn: boolean;
+  userType: "student" | "landlord";
+  currentUser?: User;
+}) {
+  const location = useLocation();
+  const hideHeaderPaths = new Set(["/users/login", "/users/register", "/users/verify"]);
+  const showHeader = !hideHeaderPaths.has(location.pathname);
+
+  const currentPageForHeader = (() => {
+    const p = location.pathname;
+    if (p === "/") return "landing";
+    if (p.startsWith("/search")) return "search";
+    if (p.startsWith("/favorites")) return "favorites";
+    if (p.startsWith("/listing")) return "listing";
+    if (p.startsWith("/messages")) return "messages";
+    if (p.startsWith("/roommate")) return "roommate";
+    if (p.startsWith("/owner")) return "dashboard";
+    if (p === "/users/login") return "login";
+    if (p === "/users/register") return "register";
+    if (p === "/users/verify") return "verification";
+    if (p === "/users/profile") return "profile";
+    return "landing";
+  })();
 
   return (
     <div className="min-h-screen bg-background">
       {showHeader && (
         <NavigationHeader
-          onNavigate={handleNavigate}
-          currentPage={currentPage}
+          onNavigate={onNavigate}
+          currentPage={currentPageForHeader}
           isLoggedIn={isLoggedIn}
           userType={userType}
-          user={currentUser || undefined}
+          user={currentUser}
         />
       )}
-
-      {currentPage === "landing" && (
-        <LandingPage
-          onNavigate={handleNavigate}
-          isLoggedIn={isLoggedIn}
-          userType={userType}
-        />
-      )}
-      {currentPage === "search" && <SearchResults onNavigate={handleNavigate} />}
-      {currentPage === "favorites" && <FavoritesPage onNavigate={handleNavigate} />}
-      {currentPage === "listing" && (
-        <ListingDetails
-          propertyId={selectedPropertyId}
-          onNavigate={handleNavigate}
-        />
-      )}
-      {currentPage === "messages" && <Messages />}
-      {currentPage === "roommate" && (
-        <RoommateMatching onNavigate={handleNavigate} />
-      )}
-      {currentPage === "dashboard" && (
-        <OwnerDashboard onNavigate={handleNavigate} />
-      )}
-      {currentPage === "login" && (
-        <LoginRegister onNavigate={handleNavigate} mode="login" />
-      )}
-      {currentPage === "register" && (
-        <LoginRegister onNavigate={handleNavigate} mode="register" />
-      )}
-      {currentPage === "verification" && (
-        <Verification onNavigate={handleNavigate} />
-      )}
-      {currentPage === "profile" && (
-        <ProfilePage user={currentUser || undefined} onNavigate={handleNavigate} />
-      )}
+      <Outlet />
     </div>
   );
+}
+
+function ListingRoute({ onNavigate }: { onNavigate: (page: string, propertyId?: string) => void }) {
+  const [params] = useSearchParams();
+  const id = params.get("listing") ?? "";
+  return <ListingDetails propertyId={id} onNavigate={onNavigate} />;
 }

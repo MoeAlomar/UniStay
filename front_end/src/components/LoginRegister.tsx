@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -16,6 +17,8 @@ export function LoginRegister({
   onNavigate,
   mode = "login",
 }: LoginRegisterProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [userType, setUserType] = useState<"student" | "landlord" | "other">("student");
   const [gender, setGender] = useState<"male" | "female">("male");
   const [activeTab, setActiveTab] = useState(mode);
@@ -43,9 +46,16 @@ export function LoginRegister({
         setGateNotice(msg);
         localStorage.removeItem("register_gate_notice");
         setActiveTab("register");
+        navigate("/users/register");
       }
     } catch (_) {}
   }, []);
+
+  // Sync tab with URL
+  useEffect(() => {
+    if (location.pathname === "/users/register") setActiveTab("register");
+    else setActiveTab("login");
+  }, [location.pathname]);
 
   const parseError = (e: any) => {
     const d = e?.response?.data;
@@ -134,7 +144,14 @@ export function LoginRegister({
 
           {/* Right Panel - Form */}
           <CardContent className="p-12">
-            <Tabs value={activeTab} onValueChange={(v: string) => setActiveTab(v as "login" | "register")}>
+            <Tabs
+              value={activeTab}
+              onValueChange={(v: string) => {
+                const next = v as "login" | "register";
+                setActiveTab(next);
+                navigate(next === "login" ? "/users/login" : "/users/register");
+              }}
+            >
               <TabsList className="grid w-full grid-cols-2 mb-8">
                 <TabsTrigger value="login">Login</TabsTrigger>
                 <TabsTrigger value="register">Register</TabsTrigger>
@@ -231,7 +248,10 @@ export function LoginRegister({
                   <p className="text-center text-sm text-muted-foreground">
                     Don't have an account?{" "}
                     <button
-                      onClick={() => setActiveTab("register")}
+                      onClick={() => {
+                        setActiveTab("register");
+                        navigate("/users/register");
+                      }}
                       className="text-primary hover:underline"
                     >
                       Register here
@@ -576,7 +596,10 @@ export function LoginRegister({
                   <p className="text-center text-sm text-muted-foreground">
                     Already have an account?{" "}
                     <button
-                      onClick={() => setActiveTab("login")}
+                      onClick={() => {
+                        setActiveTab("login");
+                        navigate("/users/login");
+                      }}
                       className="text-primary hover:underline"
                     >
                       Login here

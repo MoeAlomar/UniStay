@@ -32,7 +32,10 @@ except Exception:
 # ==============================
 SECRET_KEY = os.getenv("SECRET_KEY")
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
+# Legacy: load hosts from env
+# ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
+# Explicit hosts per deployment requirements
+ALLOWED_HOSTS = ["dareksa.up.railway.app", "127.0.0.1", "localhost"]
 
 
 # ==============================
@@ -124,18 +127,9 @@ VERIFICATION_BASE_URL = "https://dareksa.up.railway.app"
 # ==============================
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 CORS_ALLOWED_ORIGINS = [
-    # "http://localhost:5173",
-    # "http://127.0.0.1:5173",
-    # "http://localhost:3000",
-    # "http://127.0.0.1:3000",
-    # "http://localhost:3001",
-    # "http://127.0.0.1:3001",
-    # "http://localhost:3002",
-    # "http://127.0.0.1:3002",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "https://dareksa.up.railway.app",
     "https://darek.up.railway.app",
+    "http://127.0.0.1:5173",
+    "http://localhost:5173",
 ]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = list(default_headers) + ["authorization", "content-type"]
