@@ -51,17 +51,18 @@ export default defineConfig({
   build: {
     target: 'esnext',
     outDir: 'build', // fine; vite preview will serve this outDir
-  },
-  server: {
-    port: 5173,      // optional: align dev port with preview
-    open: true,
+  },server: {
+    host: true,
+    port: 5173,
+    open: false,          // ← prevent auto-open locally too
   },
   preview: {
-    host: true,      // allow external access (Railway)
-    port: 5173,      // MUST match your "npm run start" command
+    host: true,
+    port: 5173,
+    open: false,          // ← important for Railway
     allowedHosts: [
       'darek-frontend.up.railway.app',
-      'darek.up.railway.app'
+      'darek.up.railway.app',
     ],
   },
 });
