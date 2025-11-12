@@ -1008,9 +1008,8 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                   {/* Basic Information Section */}
                   <div className="p-6 border border-border rounded-lg bg-card space-y-5">
                     <h3 className="text-base font-semibold text-foreground">Basic Information</h3>
-                    <div className="grid grid-cols-1 gap-5">
+                    <div className="grid md:grid-cols-2 gap-5">
                       <div className="space-y-2">
-                        <div className="p-0.2"></div>
                         <Label htmlFor="edit_title" className="text-sm font-medium block">Property Title</Label>
                         <Input
                           id="edit_title"
@@ -1020,7 +1019,6 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                         />
                       </div>
                       <div className="space-y-2">
-                        <div className="p-0.5"></div>
                         <Label htmlFor="edit_price" className="text-sm font-medium block">Monthly Rent (SAR)</Label>
                         <Input
                           id="edit_price"
@@ -1030,8 +1028,10 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                           onChange={(e) => (editingListing.price = Number(e.target.value))}
                         />
                       </div>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-5">
                       <div className="space-y-2">
-                        <div className="p-0.5"></div>
                         <Label className="text-sm font-medium block">District</Label>
                         <Select
                           value={editingListing.location || ""}
@@ -1049,7 +1049,7 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="space-y-2"><div className="p-0.5"></div>
+                      <div className="space-y-2">
                         <Label htmlFor="edit_location_link" className="text-sm font-medium block">Location Link</Label>
                         <Input
                           id="edit_location_link"
@@ -1061,37 +1061,23 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                         />
                       </div>
                     </div>
+                    
                     <div className="space-y-2">
-                   <Label
-                     htmlFor="edit_description"
-                     className="text-sm font-medium block"
-                   >
-                    <div className="p-1"></div>
-                     Description
-                   </Label>
-
-                   <Textarea
-                     id="edit_description"
-                     defaultValue={editingListing.description || ""}
-                     placeholder="  Describe your property..."
-                     onChange={(e) => (editingListing.description = e.target.value)}
-                     rows={5}
-                     className="
-                       resize-none
-                       overflow-y-auto
-                       max-h-[8rem]
-                       w-full
-                       p-3
-                       leading-6
-                     "
-                   />
-                  </div>
+                      <Label htmlFor="edit_description" className="text-sm font-medium block">Description</Label>
+                      <Textarea
+                        id="edit_description"
+                        defaultValue={editingListing.description || ""}
+                        className="min-h-[100px] text-sm p-3"
+                        placeholder="Describe your property..."
+                        onChange={(e) => (editingListing.description = e.target.value)}
+                      />
+                    </div>
                   </div>
 
-                                   {/* Documentation Section */}
+                  {/* Documentation Section */}
                   <div className="p-6 border border-border rounded-lg bg-card space-y-5">
                     <h3 className="text-base font-semibold text-foreground">Documentation</h3>
-                    <div className="grid md:grid-cols-3 gap-x-[2px] gap-y-5">
+                    <div className="grid md:grid-cols-3 gap-5">
                       <div className="space-y-2">
                         <Label className="text-sm font-medium block">ID Type</Label>
                         <Select
@@ -1135,8 +1121,8 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                   {/* Property Details Section */}
                   <div className="p-6 border border-border rounded-lg bg-card space-y-5">
                     <h3 className="text-base font-semibold text-foreground">Property Details</h3>
-                    <div className="flex gap-3">
-                      <div className="space-y-2 flex-1">
+                    <div className="grid md:grid-cols-3 gap-5">
+                      <div className="space-y-2">
                         <Label htmlFor="edit_bedrooms" className="text-sm font-medium block">Bedrooms</Label>
                         <Input
                           id="edit_bedrooms"
@@ -1146,7 +1132,7 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                           onChange={(e) => (editingListing.bedrooms = Number(e.target.value))}
                         />
                       </div>
-                      <div className="space-y-2 flex-1">
+                      <div className="space-y-2">
                         <Label htmlFor="edit_bathrooms" className="text-sm font-medium block">Bathrooms</Label>
                         <Input
                           id="edit_bathrooms"
@@ -1156,7 +1142,7 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                           onChange={(e) => (editingListing.bathrooms = Number(e.target.value))}
                         />
                       </div>
-                      <div className="space-y-2 flex-1">
+                      <div className="space-y-2">
                         <Label htmlFor="edit_area" className="text-sm font-medium block">Area (m²)</Label>
                         <Input
                           id="edit_area"
@@ -1187,9 +1173,9 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                   </div>
 
                   {/* Options Section */}
-                  <div className="p-6 border border-border rounded-lg bg-card space-y-2">
+                  <div className="p-6 border border-border rounded-lg bg-card space-y-5">
                     <h3 className="text-base font-semibold text-foreground">Options</h3>
-                    <div className="flex items-center gap-6">
+                    <div className="flex flex-wrap gap-6">
                       <div className="flex items-center gap-3">
                         <Switch
                           id="edit_female_only"
@@ -1357,8 +1343,24 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
               </Tabs>
               
               {/* Status and Action Buttons */}
-              <div className="">
-                  <div className="w-1 h-2"></div>
+              <div className="border-t border-border pt-6 space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium block">Listing Status</Label>
+                  <Select
+                    value={editingListing.status || "DRAFT"}
+                    onValueChange={(v: "DRAFT" | "AVAILABLE" | "RESERVED") => setEditingListing((prev: any) => ({ ...prev, status: v }))}
+                  >
+                    <SelectTrigger className="h-11 text-base max-w-md">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="DRAFT">Draft</SelectItem>
+                      <SelectItem value="AVAILABLE">Available</SelectItem>
+                      <SelectItem value="RESERVED">Reserved</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="flex justify-end gap-3 pt-2">
                   <Button 
                     variant="outline" 

@@ -64,6 +64,8 @@ export function Messages() {
   const [selectedConversation, setSelectedConversation] =
     useState<Conversation | null>(null);
   const [convMap, setConvMap] = useState<Map<string, Conversation>>(new Map());
+  // Cache per-conversation avatar urls for the sidebar list
+  const [listAvatars, setListAvatars] = useState<Map<string, string | null>>(new Map());
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageText, setMessageText] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -474,6 +476,47 @@ export function Messages() {
     }
   }
 
+  // Hydrate per-conversation avatars for the sidebar list (avoids using selected conversation participants)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const client = await getTwilioClient();
+        const myId = client.user?.identity;
+        const entries: Array<[string, string | null]> = [];
+        for (const ui of convList) {
+          const convo = convMap.get(ui.id);
+          if (!convo) { entries.push([ui.id, null]); continue; }
+          try {
+            const attrs = (await convo.getAttributes()) as any;
+            const map = attrs?.usernames && typeof attrs.usernames === "object" ? attrs.usernames : undefined;
+            let otherId: string | undefined;
+            if (map && myId) {
+              const ids: string[] = Object.keys(map);
+              otherId = ids.find((k) => String(k) !== String(myId));
+            }
+            if (otherId) {
+              try {
+                const u = await getUserById(Number(otherId));
+                entries.push([ui.id, u?.avatar_url || null]);
+              } catch {
+                entries.push([ui.id, null]);
+              }
+            } else {
+              entries.push([ui.id, null]);
+            }
+          } catch {
+            entries.push([ui.id, null]);
+          }
+        }
+        if (!cancelled) setListAvatars(new Map(entries));
+      } catch {
+        if (!cancelled) setListAvatars(new Map());
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [convList, convMap]);
+
   /** Keep read state if tab becomes visible again */
   useEffect(() => {
     if (!selectedConversation) return;
@@ -615,9 +658,9 @@ export function Messages() {
                       <div className="flex items-start gap-3">
                         <Avatar>
                           {(() => {
-                            const other = participants.find((p) => String(p.id) !== String(myIdentity));
-                            return other?.user?.avatar_url ? (
-                              <AvatarImage src={transformAvatar(other.user.avatar_url)} alt={other.name} />
+                            const au = listAvatars.get(conversation.id);
+                            return au ? (
+                              <AvatarImage src={transformAvatar(au)} alt={conversation.name} />
                             ) : null;
                           })()}
                           <AvatarFallback>{conversation.avatar}</AvatarFallback>

@@ -189,6 +189,7 @@ else:
             "PASSWORD": DB_PASSWORD,
             "HOST": DB_HOST,
             "PORT": DB_PORT,
+            "OPTIONS": {"sslmode": os.getenv("POSTGRES_SSLMODE", "prefer")},
         }
     }
 
