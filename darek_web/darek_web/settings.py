@@ -56,7 +56,7 @@ INSTALLED_APPS = [
     "cloudinary",
     "cloudinary_storage",
     # project apps
-    "users",
+    "users.apps.UsersConfig",
     "listings",
     "messaging",
     "reviews",

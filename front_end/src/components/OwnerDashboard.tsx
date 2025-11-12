@@ -20,6 +20,7 @@ import {
 import { PropertyCard } from "./PropertyCard";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { districtOptions as fetchDistrictOptions } from "../services/listings";
+import { getTwilioClient, listSubscribedConversations } from "../services/messaging";
 import { getAmenitiesForListing, setAmenitiesForListing, removeAmenitiesForListing } from "../services/amenitiesLocal";
 import { bulkUploadImages, listImagesForListing } from "../services/listingImages";
 
@@ -56,6 +57,9 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
   const [amenities, setAmenities] = useState<{ title: string; symbol: string }[]>([]);
   const [amenityTitle, setAmenityTitle] = useState<string>("");
   const [amenitySymbol, setAmenitySymbol] = useState<string>("");
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+  const unreadMapRef = useRef<Record<string, boolean>>({});
+  const myIdentityRef = useRef<string | undefined>(undefined);
 
   // Photo upload state
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
@@ -193,6 +197,74 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
     })();
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+    let cleanupFns: (() => void)[] = [];
+    (async () => {
+      try {
+        const client = await getTwilioClient();
+        if (!mounted) return;
+        myIdentityRef.current = client.user?.identity;
+        const items = await listSubscribedConversations();
+        if (!mounted) return;
+        const map: Record<string, boolean> = {};
+        let count = 0;
+        for (const c of items) {
+          let unread = false;
+          try {
+            const u = await c.getUnreadMessagesCount();
+            unread = (u ?? 0) > 0;
+          } catch {}
+          map[c.sid] = unread;
+          if (unread) count += 1;
+          const onAdded = (m: any) => {
+            const me = myIdentityRef.current;
+            if (me && String(m?.author) !== String(me)) {
+              if (!unreadMapRef.current[c.sid]) {
+                unreadMapRef.current[c.sid] = true;
+                setUnreadCount((prev) => prev + 1);
+              }
+            }
+          };
+          // @ts-ignore
+          c.on?.("messageAdded", onAdded);
+          const recompute = async () => {
+            try {
+              const u = await c.getUnreadMessagesCount();
+              const nowUnread = (u ?? 0) > 0;
+              const wasUnread = !!unreadMapRef.current[c.sid];
+              unreadMapRef.current[c.sid] = nowUnread;
+              if (nowUnread && !wasUnread) setUnreadCount((prev) => prev + 1);
+              else if (!nowUnread && wasUnread) setUnreadCount((prev) => Math.max(0, prev - 1));
+            } catch {}
+          };
+          // @ts-ignore
+          c.on?.("updated", recompute);
+          // @ts-ignore
+          c.on?.("participantUpdated", recompute);
+          cleanupFns.push(() => {
+            try {
+              // @ts-ignore
+              c.removeListener?.("messageAdded", onAdded);
+              // @ts-ignore
+              c.removeListener?.("updated", recompute);
+              // @ts-ignore
+              c.removeListener?.("participantUpdated", recompute);
+            } catch {}
+          });
+        }
+        unreadMapRef.current = map;
+        setUnreadCount(count);
+      } catch {}
+    })();
+    return () => {
+      mounted = false;
+      for (const fn of cleanupFns) {
+        try { fn(); } catch {}
+      }
+    };
+  }, []);
+
   return (
     <div className="min-h-screen bg-secondary">
       <div className="flex">
@@ -211,9 +283,9 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
               >
                 <MessageSquare className="w-5 h-5" />
                 <span>Messages</span>
-                <span className="ml-auto bg-primary text-white text-xs px-2 py-1 rounded-full">
-                  3
-                </span>
+                {unreadCount > 0 ? (
+                  <span className="ml-auto bg-primary text-white text-xs px-2 py-1 rounded-full">{unreadCount}</span>
+                ) : null}
               </button>
               {/* Verification and Settings removed */}
             </nav>
@@ -244,7 +316,7 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl text-foreground">{stats?.total_listings ?? 12}</div>
+                  <div className="text-3xl text-foreground">{stats ? stats.total_listings : 0}</div>
                 </CardContent>
               </Card>
 
@@ -255,7 +327,7 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl text-foreground">{stats ? stats.available + stats.reserved : 10}</div>
+                  <div className="text-3xl text-foreground">{stats ? stats.available + stats.reserved : 0}</div>
                 </CardContent>
               </Card>
 
@@ -266,7 +338,7 @@ export function OwnerDashboard({ onNavigate }: OwnerDashboardProps) {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl text-foreground">{stats?.draft ?? 2}</div>
+                  <div className="text-3xl text-foreground">{stats ? stats.draft : 0}</div>
                 </CardContent>
               </Card>
             </div>

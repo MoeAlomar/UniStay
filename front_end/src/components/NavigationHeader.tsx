@@ -65,6 +65,21 @@ export function NavigationHeader({
           </button>
 
           <nav className="hidden md:flex items-center gap-6">
+            {isLoggedIn && (
+              <button
+                onClick={() => onNavigate("messages")}
+                className="text-foreground hover:text-primary transition-colors"
+              >
+                Messages
+              </button>
+            )}
+
+            {isLoggedIn && user && user.role !== "landlord" && (
+              <button onClick={() => onNavigate("roommate")} className="text-foreground hover:text-primary transition-colors">
+                Roommates
+              </button>
+            )}
+
             <button
               onClick={() => {
                 if (isLoggedIn) {
@@ -84,21 +99,6 @@ export function NavigationHeader({
               Listings
             </button>
 
-            {/* NEW: Messages tab when logged in */}
-            {isLoggedIn && (
-              <button
-                onClick={() => onNavigate("messages")}
-                className="text-foreground hover:text-primary transition-colors"
-              >
-                Messages
-              </button>
-            )}
-
-            {isLoggedIn && user && user.role !== "landlord" && (
-              <button onClick={() => onNavigate("roommate")} className="text-foreground hover:text-primary transition-colors">
-                Roommates
-              </button>
-            )}
             {isLoggedIn && userType === "landlord" && (
               <button onClick={() => onNavigate("dashboard")} className="text-foreground hover:text-primary transition-colors">
                 Dashboard
@@ -189,27 +189,6 @@ export function NavigationHeader({
 
                 {/* Navigation links */}
                 <div className="space-y-2">
-                  <SheetClose asChild>
-                    <button
-                      onClick={() => {
-                        if (isLoggedIn) {
-                          onNavigate("search");
-                        } else {
-                          try {
-                            localStorage.setItem(
-                              "register_gate_notice",
-                              JSON.stringify({ message: "Please register to access listings." })
-                            );
-                          } catch (_) {}
-                          onNavigate("register");
-                        }
-                      }}
-                      className="w-full text-left p-3 rounded-md hover:bg-muted text-foreground"
-                    >
-                      Listings
-                    </button>
-                  </SheetClose>
-
                   {isLoggedIn && (
                     <SheetClose asChild>
                       <button
@@ -231,6 +210,27 @@ export function NavigationHeader({
                       </button>
                     </SheetClose>
                   )}
+
+                  <SheetClose asChild>
+                    <button
+                      onClick={() => {
+                        if (isLoggedIn) {
+                          onNavigate("search");
+                        } else {
+                          try {
+                            localStorage.setItem(
+                              "register_gate_notice",
+                              JSON.stringify({ message: "Please register to access listings." })
+                            );
+                          } catch (_) {}
+                          onNavigate("register");
+                        }
+                      }}
+                      className="w-full text-left p-3 rounded-md hover:bg-muted text-foreground"
+                    >
+                      Listings
+                    </button>
+                  </SheetClose>
 
                   {isLoggedIn && userType === "landlord" && (
                     <SheetClose asChild>
