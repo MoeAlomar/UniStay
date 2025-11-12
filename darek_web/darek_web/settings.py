@@ -18,6 +18,7 @@ except ImportError:
 if load_dotenv:
     load_dotenv()
 import cloudinary
+import dj_database_url
 import cloudinary.uploader
 import cloudinary.api
 import os
@@ -161,31 +162,41 @@ WSGI_APPLICATION = "darek_web.wsgi.application"
 # ==============================
 # Database
 # ==============================
+DATABASE_URL = os.getenv('DATABASE_URL')
 
-# Database configuration (works with Railway's Postgres vars)
-DB_NAME = os.getenv("DB_NAME") or os.getenv("POSTGRES_DB") or os.getenv("PGDATABASE")
-DB_USER = os.getenv("DB_USER") or os.getenv("POSTGRES_USER") or os.getenv("PGUSER")
-DB_PASSWORD = os.getenv("DB_PASSWORD") or os.getenv("POSTGRES_PASSWORD") or os.getenv("PGPASSWORD")
-DB_HOST = os.getenv("DB_HOST") or os.getenv("POSTGRES_HOST") or os.getenv("PGHOST", "localhost")
-DB_PORT = os.getenv("DB_PORT") or os.getenv("POSTGRES_PORT") or os.getenv("PGPORT", "5432")
-
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": DB_NAME,
-        "USER": DB_USER,
-        "PASSWORD": DB_PASSWORD,
-        "HOST": DB_HOST,
-        "PORT": DB_PORT,
+if DATABASE_URL:
+    # Use Railway's DATABASE_URL directly
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=DATABASE_URL,
+            conn_max_age=600,
+            conn_health_checks=True,
+        )
     }
-}
-if not all([DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT]):
-    raise RuntimeError(
-        "Database environment variables are missing. "
-        "Expected DB_NAME/DB_USER/DB_PASSWORD/DB_HOST/DB_PORT "
-        "or POSTGRES_/PG* equivalents."
-    )
+else:
+    # Fallback to individual variables for local development
+    DB_NAME = os.getenv("DB_NAME") or os.getenv("POSTGRES_DB") or os.getenv("PGDATABASE")
+    DB_USER = os.getenv("DB_USER") or os.getenv("POSTGRES_USER") or os.getenv("PGUSER")
+    DB_PASSWORD = os.getenv("DB_PASSWORD") or os.getenv("POSTGRES_PASSWORD") or os.getenv("PGPASSWORD")
+    DB_HOST = os.getenv("DB_HOST") or os.getenv("POSTGRES_HOST") or os.getenv("PGHOST", "localhost")
+    DB_PORT = os.getenv("DB_PORT") or os.getenv("POSTGRES_PORT") or os.getenv("PGPORT", "5432")
 
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": DB_NAME,
+            "USER": DB_USER,
+            "PASSWORD": DB_PASSWORD,
+            "HOST": DB_HOST,
+            "PORT": DB_PORT,
+        }
+    }
+
+    if not all([DB_NAME, DB_USER, DB_PASSWORD]):
+        raise RuntimeError(
+            "Database environment variables are missing. "
+            "Expected DATABASE_URL or DB_NAME/DB_USER/DB_PASSWORD or POSTGRES_*/PG* equivalents."
+        )
 # ==============================
 # Password Validation
 # ==============================
