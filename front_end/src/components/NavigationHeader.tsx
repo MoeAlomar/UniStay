@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { User as UserIcon, Menu, Moon, Sun } from "lucide-react";
+import { Sheet, SheetTrigger, SheetContent, SheetClose } from "./ui/sheet";
+import { Switch } from "./ui/switch";
 import type { User as AppUser } from "../services/auth";
 
 interface NavigationHeaderProps {
@@ -106,22 +108,28 @@ export function NavigationHeader({
         </div>
 
         <div className="flex items-center gap-3 relative">
+          {/* Desktop theme toggle */}
           <Button
             variant="outline"
             size="icon"
             aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
             onClick={() => setIsDark((prev) => !prev)}
-            className="rounded-md"
+            className="rounded-md hidden md:inline-flex"
           >
             {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
           </Button>
 
+          {/* Desktop auth controls */}
           {!isLoggedIn ? (
             <>
-              <Button variant="ghost" onClick={() => onNavigate("login")} className="text-foreground">
+              <Button
+                variant="ghost"
+                onClick={() => onNavigate("login")}
+                className="text-foreground hidden md:inline-flex"
+              >
                 Login
               </Button>
-              <Button onClick={() => onNavigate("register")}>Register</Button>
+              <Button onClick={() => onNavigate("register")} className="hidden md:inline-flex">Register</Button>
             </>
           ) : (
             <button
@@ -132,7 +140,7 @@ export function NavigationHeader({
                 } catch (_) {}
               }}
               aria-label="Profile"
-              className="rounded-md border border-border p-1 hover:bg-muted transition-colors"
+              className="rounded-md border border-border p-1 hover:bg-muted transition-colors hidden md:inline-flex"
             >
               <Avatar className="size-8">
                 {user?.avatar_url ? (
@@ -157,9 +165,137 @@ export function NavigationHeader({
             </button>
           )}
 
-          <Button variant="ghost" size="icon" className="md:hidden">
-            <Menu className="w-5 h-5" />
-          </Button>
+          {/* Mobile drawer */}
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open menu">
+                <Menu className="w-5 h-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[85vw] sm:w-[360px]">
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center">
+                    <span className="text-white text-sm">DR</span>
+                  </div>
+                  <span className="text-lg text-foreground">Darek</span>
+                </div>
+
+                {/* Mobile theme toggle */}
+                <div className="flex items-center justify-between py-1">
+                  <span className="text-sm text-muted-foreground">Dark mode</span>
+                  <Switch checked={isDark} onCheckedChange={(val) => setIsDark(Boolean(val))} />
+                </div>
+
+                {/* Navigation links */}
+                <div className="space-y-2">
+                  <SheetClose asChild>
+                    <button
+                      onClick={() => {
+                        if (isLoggedIn) {
+                          onNavigate("search");
+                        } else {
+                          try {
+                            localStorage.setItem(
+                              "register_gate_notice",
+                              JSON.stringify({ message: "Please register to access listings." })
+                            );
+                          } catch (_) {}
+                          onNavigate("register");
+                        }
+                      }}
+                      className="w-full text-left p-3 rounded-md hover:bg-muted text-foreground"
+                    >
+                      Listings
+                    </button>
+                  </SheetClose>
+
+                  {isLoggedIn && (
+                    <SheetClose asChild>
+                      <button
+                        onClick={() => onNavigate("messages")}
+                        className="w-full text-left p-3 rounded-md hover:bg-muted text-foreground"
+                      >
+                        Messages
+                      </button>
+                    </SheetClose>
+                  )}
+
+                  {isLoggedIn && user && user.role !== "landlord" && (
+                    <SheetClose asChild>
+                      <button
+                        onClick={() => onNavigate("roommate")}
+                        className="w-full text-left p-3 rounded-md hover:bg-muted text-foreground"
+                      >
+                        Roommates
+                      </button>
+                    </SheetClose>
+                  )}
+
+                  {isLoggedIn && userType === "landlord" && (
+                    <SheetClose asChild>
+                      <button
+                        onClick={() => onNavigate("dashboard")}
+                        className="w-full text-left p-3 rounded-md hover:bg-muted text-foreground"
+                      >
+                        Dashboard
+                      </button>
+                    </SheetClose>
+                  )}
+                </div>
+
+                {/* Auth actions on mobile */}
+                {!isLoggedIn ? (
+                  <div className="flex items-center gap-2">
+                    <SheetClose asChild>
+                      <Button variant="ghost" size="sm" onClick={() => onNavigate("login")} className="flex-1">
+                        Login
+                      </Button>
+                    </SheetClose>
+                    <SheetClose asChild>
+                      <Button size="sm" onClick={() => onNavigate("register")} className="flex-1">
+                        Register
+                      </Button>
+                    </SheetClose>
+                  </div>
+                ) : (
+                  <SheetClose asChild>
+                    <button
+                      onClick={() => {
+                        onNavigate("profile");
+                        try {
+                          window.history.pushState(null, "", "/users/profile");
+                        } catch (_) {}
+                      }}
+                      className="w-full text-left p-3 rounded-md hover:bg-muted text-foreground flex items-center gap-3"
+                    >
+                      <Avatar className="size-8">
+                        {user?.avatar_url ? (
+                          <AvatarImage
+                            src={transformAvatar(user.avatar_url)}
+                            alt={
+                              user?.first_name ? `${user.first_name} ${user.last_name || ""}`.trim() : user?.username || "User"
+                            }
+                            loading="eager"
+                            decoding="async"
+                          />
+                        ) : null}
+                        <AvatarFallback>
+                          {(() => {
+                            const fn = user?.first_name?.trim() || "";
+                            const ln = user?.last_name?.trim() || "";
+                            const pair = ((fn ? fn[0] : "") + (ln ? ln[0] : "")).toUpperCase();
+                            return pair || "US";
+                          })()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span>Profile</span>
+                    </button>
+                  </SheetClose>
+                )}
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
     </header>

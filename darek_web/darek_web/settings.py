@@ -111,16 +111,24 @@ ROOT_URLCONF = "darek_web.urls"
 # ==============================
 # Email
 # ==============================
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "smtp.gmail.com"
+# Default to SMTP (Gmail). Fall back to console backend when credentials are missing (dev/local).
+EMAIL_HOST = "smtp.zoho.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD")
-DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL")
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL") or EMAIL_HOST_USER or "noreply@unistay.local"
+EMAIL_TIMEOUT = int(os.environ.get("EMAIL_TIMEOUT", "10"))
+
+if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+else:
+    # Dev-friendly: prints emails to console so you can see the verification link locally
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://127.0.0.1:5173")
-VERIFICATION_BASE_URL = "https://dareksa.up.railway.app"
+# Use env override for verification link base; default to local backend URL in dev
+VERIFICATION_BASE_URL = os.environ.get("VERIFICATION_BASE_URL", "http://127.0.0.1:8000")
 
 # ==============================
 # CORS

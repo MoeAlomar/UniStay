@@ -222,7 +222,7 @@ export function LoginRegister({
                       setLoading(true);
                       try {
                         const { login } = await import("../services/auth");
-                        await login(loginEmail, loginPassword);
+                        await login((loginEmail ?? "").trim().toLowerCase(), loginPassword);
                         onNavigate("landing");
                       } catch (e: any) {
                         const d = e?.response?.data;
@@ -240,6 +240,12 @@ export function LoginRegister({
                   >
                     {loading ? "Signing in…" : "Login"}
                   </Button>
+
+                  <p className="text-xs text-muted-foreground mt-2 text-center">
+                    By signing in, you agree to our
+                    {' '}<span className="underline">Terms of Service</span> and
+                    {' '}<span className="underline">Privacy Policy</span>.
+                  </p>
 
                   {error && (
                     <div className="text-sm text-destructive text-center">{error}</div>
@@ -530,12 +536,11 @@ export function LoginRegister({
                     )}
                   </div>
 
-                  <div className="flex items-start gap-2">
-                    <input type="checkbox" className="mt-1 rounded" />
-                    <label className="text-sm text-muted-foreground">
-                      I agree to the Terms of Service and Privacy Policy
-                    </label>
-                  </div>
+                  <p className="text-xs text-muted-foreground text-center">
+                    By signing in, you agree to our
+                    {' '}<span className="underline">Terms of Service</span> and
+                    {' '}<span className="underline">Privacy Policy</span>.
+                  </p>
 
                   <Button
                     className="w-full"
@@ -564,11 +569,22 @@ export function LoginRegister({
                         });
                         // Automatically log in with the same credentials
                         try {
-                          await login(emailLower, registerPassword);
+                          await login(emailLower.trim().toLowerCase(), registerPassword);
                           onNavigate("landing");
                         } catch (e: any) {
-                          // If auto-login fails, show the error but stay on register tab
-                          setError(parseError(e));
+                          // If auto-login fails (e.g., transient network), retry once after a short delay
+                          const msg = String(e?.message || "").toLowerCase();
+                          if (msg.includes("network")) {
+                            try {
+                              await new Promise((r) => setTimeout(r, 700));
+                              await login(emailLower.trim().toLowerCase(), registerPassword);
+                              onNavigate("landing");
+                            } catch (e2: any) {
+                              setError(parseError(e2));
+                            }
+                          } else {
+                            setError(parseError(e));
+                          }
                         }
                       } catch (e: any) {
                         const d = e?.response?.data;
@@ -592,6 +608,12 @@ export function LoginRegister({
                   {error && (
                     <div className="text-sm text-destructive text-center">{error}</div>
                   )}
+
+                  <p className="text-xs text-muted-foreground mt-2 text-center">
+                    By signing in, you agree to our
+                    {' '}<span className="underline">Terms of Service</span> and
+                    {' '}<span className="underline">Privacy Policy</span>.
+                  </p>
 
                   <p className="text-center text-sm text-muted-foreground">
                     Already have an account?{" "}

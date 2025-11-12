@@ -7,6 +7,9 @@ from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 from django.contrib.auth.tokens import default_token_generator
 from django.conf import settings
+import logging
+
+logger = logging.getLogger(__name__)
 
 User = get_user_model()
 
@@ -17,9 +20,20 @@ def send_verification_email(sender, instance, created, **kwargs):
         uid = urlsafe_base64_encode(force_bytes(instance.pk))
         verification_link = f"{settings.VERIFICATION_BASE_URL}/users/verify/{uid}/{token}/"
 
-        subject = "Verify Your UniStay KSA Account"
+        subject = "Verify Your Darek Account"
         message = render_to_string('users/verification_email.txt', {  # Create this template
             'user': instance,
             'verification_link': verification_link,
         })
-        send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [instance.email])
+        try:
+            sent = send_mail(
+                subject,
+                message,
+                settings.DEFAULT_FROM_EMAIL,
+                [instance.email],
+                fail_silently=False,
+            )
+            logger.info("Verification email dispatched to %s (sent=%s)", instance.email, sent)
+        except Exception:
+            # Do not block user creation on email errors; log for diagnostics
+            logger.exception("Failed to send verification email to %s", instance.email)
