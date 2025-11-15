@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { PropertyCard } from "./PropertyCard";
 import { Button } from "./ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./ui/sheet";
 import { Slider } from "./ui/slider";
 import { Checkbox } from "./ui/checkbox";
 import { Label } from "./ui/label";
@@ -38,10 +37,12 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 5000]);
   const [showMap, setShowMap] = useState(false);
 
-  // START EMPTY – no mock flash
+  // start empty – no mock flash
   const [items, setItems] = useState<PropertyItem[]>([]);
 
-  const [districtOptions, setDistrictOptions] = useState<{ value: string; label: string }[]>([]);
+  const [districtOptions, setDistrictOptions] = useState<
+    { value: string; label: string }[]
+  >([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [tabValue, setTabValue] = useState<"find" | "favorites">("find");
 
@@ -60,6 +61,9 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // control mobile filters overlay
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+
   useEffect(() => {
     // Initialize tab from URL, e.g., /?tab=favorites
     try {
@@ -70,40 +74,49 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
 
     (async () => {
       try {
-        // Load user to determine role-based default filtering
         const u = await profile();
         setCurrentUser(u);
         setError(null);
         setLoading(true);
         const params: Record<string, any> = {};
-        const [data, opts] = await Promise.all([listListings(params), fetchDistrictOptions()]);
+        const [data, opts] = await Promise.all([
+          listListings(params),
+          fetchDistrictOptions(),
+        ]);
         setDistrictOptions(opts);
-        const labelMap = Object.fromEntries(opts.map((o) => [o.value, o.label]));
+        const labelMap = Object.fromEntries(
+          opts.map((o) => [o.value, o.label])
+        );
         setItems(
-          data.map((l: any): PropertyItem => {
-            const placeholder =
-              "https://images.unsplash.com/photo-1515263487990-61b07816b324?auto=format&fit=crop&w=720&q=60";
-            const primary = Array.isArray(l.images)
-              ? (l.images.find((i: any) => i.is_primary) || null)
-              : null;
-            const first = Array.isArray(l.images) && l.images.length ? l.images[0] : null;
-            const imageUrl = primary?.url || first?.url || placeholder;
-            return {
-              id: String(l.id),
-              image: imageUrl,
-              price: Number(l.price),
-              title: l.title,
-              location: labelMap[l.district] || l.district || "",
-              distance: "N/A",
-              status: l.status,
-              femaleOnly: !!l.female_only,
-              roommatesAllowed: !!l.roommates_allowed,
-              studentDiscount: !!l.student_discount,
-            };
-          })
+          data.map(
+            (l: any): PropertyItem => {
+              const placeholder =
+                "https://images.unsplash.com/photo-1515263487990-61b07816b324?auto=format&fit=crop&w=720&q=60";
+              const primary = Array.isArray(l.images)
+                ? (l.images.find((i: any) => i.is_primary) || null)
+                : null;
+              const first =
+                Array.isArray(l.images) && l.images.length
+                  ? l.images[0]
+                  : null;
+              const imageUrl = primary?.url || first?.url || placeholder;
+              return {
+                id: String(l.id),
+                image: imageUrl,
+                price: Number(l.price),
+                title: l.title,
+                location: labelMap[l.district] || l.district || "",
+                distance: "N/A",
+                status: l.status,
+                femaleOnly: !!l.female_only,
+                roommatesAllowed: !!l.roommates_allowed,
+                studentDiscount: !!l.student_discount,
+              };
+            }
+          )
         );
       } catch (_) {
-        // on error we just leave items as [] (no mock flash)
+        // leave items as [] on error
       } finally {
         setLoading(false);
       }
@@ -132,27 +145,32 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
         ),
       ]);
       const labelMap = Object.fromEntries(opts.map((o) => [o.value, o.label]));
-      const transformed: PropertyItem[] = (list.filter(Boolean) as any[]).map((l: any) => {
-        const placeholder =
-          "https://images.unsplash.com/photo-1515263487990-61b07816b324?auto=format&fit=crop&w=720&q=60";
-        const primary = Array.isArray(l.images)
-          ? (l.images.find((i: any) => i.is_primary) || null)
-          : null;
-        const first = Array.isArray(l.images) && l.images.length ? l.images[0] : null;
-        const imageUrl = primary?.url || first?.url || placeholder;
-        return {
-          id: String(l.id),
-          image: imageUrl,
-          price: Number(l.price),
-          title: l.title,
-          location: labelMap[l.district] || l.district || "",
-          distance: "N/A",
-          status: l.status,
-          femaleOnly: !!l.female_only,
-          roommatesAllowed: !!l.roommates_allowed,
-          studentDiscount: !!l.student_discount,
-        };
-      });
+      const transformed: PropertyItem[] = (list.filter(Boolean) as any[]).map(
+        (l: any) => {
+          const placeholder =
+            "https://images.unsplash.com/photo-1515263487990-61b07816b324?auto=format&fit=crop&w=720&q=60";
+          const primary = Array.isArray(l.images)
+            ? (l.images.find((i: any) => i.is_primary) || null)
+            : null;
+          const first =
+            Array.isArray(l.images) && l.images.length
+              ? l.images[0]
+              : null;
+          const imageUrl = primary?.url || first?.url || placeholder;
+          return {
+            id: String(l.id),
+            image: imageUrl,
+            price: Number(l.price),
+            title: l.title,
+            location: labelMap[l.district] || l.district || "",
+            distance: "N/A",
+            status: l.status,
+            femaleOnly: !!l.female_only,
+            roommatesAllowed: !!l.roommates_allowed,
+            studentDiscount: !!l.student_discount,
+          };
+        }
+      );
       setFavItems(transformed);
     } catch (e: any) {
       setFavError("Failed to load favorites.");
@@ -199,10 +217,14 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
       setError(null);
       const effectivePriceRange = overrides?.priceRange ?? priceRange;
       const effectiveSelectedTypes = overrides?.selectedTypes ?? selectedTypes;
-      const effectiveAvailableOnly = overrides?.availableOnly ?? availableOnly;
-      const effectiveFemaleOnly = overrides?.femaleOnly ?? femaleOnly;
-      const effectiveStudentDiscount = overrides?.studentDiscount ?? studentDiscount;
-      const effectiveRoommatesOnly = overrides?.roommatesOnly ?? roommatesOnly;
+      const effectiveAvailableOnly =
+        overrides?.availableOnly ?? availableOnly;
+      const effectiveFemaleOnly =
+        overrides?.femaleOnly ?? femaleOnly;
+      const effectiveStudentDiscount =
+        overrides?.studentDiscount ?? studentDiscount;
+      const effectiveRoommatesOnly =
+        overrides?.roommatesOnly ?? roommatesOnly;
 
       const params: Record<string, any> = {
         max_price: effectivePriceRange[1],
@@ -211,36 +233,56 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
       if (effectiveFemaleOnly) params.female_only = true;
       if (effectiveStudentDiscount) params.student_discount = true;
       if (effectiveRoommatesOnly) params.roommates_allowed = true;
+
       const data = await listListings(params);
       const filtered = data.filter((l: any) => {
-        if (effectivePriceRange[0] != null && Number(l.price) < effectivePriceRange[0]) return false;
-        if (effectivePriceRange[1] != null && Number(l.price) > effectivePriceRange[1]) return false;
-        if (effectiveSelectedTypes.length > 0 && !effectiveSelectedTypes.includes(l.type)) return false;
+        if (
+          effectivePriceRange[0] != null &&
+          Number(l.price) < effectivePriceRange[0]
+        )
+          return false;
+        if (
+          effectivePriceRange[1] != null &&
+          Number(l.price) > effectivePriceRange[1]
+        )
+          return false;
+        if (
+          effectiveSelectedTypes.length > 0 &&
+          !effectiveSelectedTypes.includes(l.type)
+        )
+          return false;
         return true;
       });
-      const labelMap = Object.fromEntries(districtOptions.map((o) => [o.value, o.label]));
+      const labelMap = Object.fromEntries(
+        districtOptions.map((o) => [o.value, o.label])
+      );
       setItems(
-        filtered.map((l: any): PropertyItem => {
-          const placeholder =
-            "https://images.unsplash.com/photo-1515263487990-61b07816b324?auto=format&fit=crop&w=720&q=60";
-          const primary = Array.isArray(l.images)
-            ? (l.images.find((i: any) => i.is_primary) || null)
-            : null;
-          const first = Array.isArray(l.images) && l.images.length ? l.images[0] : null;
-          const imageUrl = primary?.url || first?.url || placeholder;
-          return {
-            id: String(l.id),
-            image: imageUrl,
-            price: Number(l.price),
-            title: l.title,
-            location: labelMap[l.district] || l.district || "",
-            status: l.status,
-            femaleOnly: !!l.female_only,
-            roommatesAllowed: !!l.roommates_allowed,
-            studentDiscount: !!l.student_discount,
-            distance: "N/A",
-          };
-        })
+        filtered.map(
+          (l: any): PropertyItem => {
+            const placeholder =
+              "https://images.unsplash.com/photo-1515263487990-61b07816b324?auto=format&fit=crop&w=720&q=60";
+            const primary = Array.isArray(l.images)
+              ? (l.images.find((i: any) => i.is_primary) || null)
+              : null;
+            const first =
+              Array.isArray(l.images) && l.images.length
+                ? l.images[0]
+                : null;
+            const imageUrl = primary?.url || first?.url || placeholder;
+            return {
+              id: String(l.id),
+              image: imageUrl,
+              price: Number(l.price),
+              title: l.title,
+              location: labelMap[l.district] || l.district || "",
+              status: l.status,
+              femaleOnly: !!l.female_only,
+              roommatesAllowed: !!l.roommates_allowed,
+              studentDiscount: !!l.student_discount,
+              distance: "N/A",
+            };
+          }
+        )
       );
     } catch (e: any) {
       setError("Failed to apply filters. Please try again.");
@@ -258,7 +300,6 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
     setAvailableOnly(false);
     setRoommatesOnly(false);
     setPriceRange([0, 5000]);
-    // Ensure filters apply using the reset values immediately (no second click needed)
     await applyFilters({
       priceRange: [0, 5000],
       selectedTypes: [],
@@ -272,15 +313,19 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
   return (
     <div className="min-h-screen bg-secondary">
       <div className="container mx-auto px-4 py-8">
-        <Tabs value={tabValue} onValueChange={(v: string) => setTabValue(v as "find" | "favorites")}>
+        <Tabs
+          value={tabValue}
+          onValueChange={(v: string) => setTabValue(v as "find" | "favorites")}
+        >
           <TabsList className="w-full mb-6">
             <TabsTrigger value="find">Find</TabsTrigger>
             <TabsTrigger value="favorites">Favorites</TabsTrigger>
           </TabsList>
 
+          {/* FIND TAB */}
           <TabsContent value="find">
             <div className="flex gap-6">
-              {/* Filter Sidebar */}
+              {/* Filter Sidebar (desktop) */}
               <div className="hidden lg:block w-80 flex-shrink-0">
                 <Card className="sticky top-24">
                   <CardContent className="p-6">
@@ -316,7 +361,10 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
                               setTypeStudio(!!v)
                             }
                           />
-                          <label htmlFor="studio" className="text-sm cursor-pointer">
+                          <label
+                            htmlFor="studio"
+                            className="text-sm cursor-pointer"
+                          >
                             Studio
                           </label>
                         </div>
@@ -328,7 +376,10 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
                               setTypeShared(!!v)
                             }
                           />
-                          <label htmlFor="other" className="text-sm cursor-pointer">
+                          <label
+                            htmlFor="other"
+                            className="text-sm cursor-pointer"
+                          >
                             Other
                           </label>
                         </div>
@@ -340,7 +391,10 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
                               setTypeApartment(!!v)
                             }
                           />
-                          <label htmlFor="apartment" className="text-sm cursor-pointer">
+                          <label
+                            htmlFor="apartment"
+                            className="text-sm cursor-pointer"
+                          >
                             Apartment
                           </label>
                         </div>
@@ -359,7 +413,10 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
                               setAvailableOnly(!!v)
                             }
                           />
-                          <label htmlFor="available-only" className="text-sm cursor-pointer">
+                          <label
+                            htmlFor="available-only"
+                            className="text-sm cursor-pointer"
+                          >
                             Available Only
                           </label>
                         </div>
@@ -371,7 +428,10 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
                               setFemaleOnly(!!v)
                             }
                           />
-                          <label htmlFor="female" className="text-sm cursor-pointer">
+                          <label
+                            htmlFor="female"
+                            className="text-sm cursor-pointer"
+                          >
                             Female Only
                           </label>
                         </div>
@@ -383,7 +443,10 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
                               setStudentDiscount(!!v)
                             }
                           />
-                          <label htmlFor="discount" className="text-sm cursor-pointer">
+                          <label
+                            htmlFor="discount"
+                            className="text-sm cursor-pointer"
+                          >
                             Student Discount
                           </label>
                         </div>
@@ -395,7 +458,10 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
                               setRoommatesOnly(!!v)
                             }
                           />
-                          <label htmlFor="roommates" className="text-sm cursor-pointer">
+                          <label
+                            htmlFor="roommates"
+                            className="text-sm cursor-pointer"
+                          >
                             Roommates Allowed
                           </label>
                         </div>
@@ -426,152 +492,27 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
                 {/* Results Header */}
                 <div className="flex items-center justify-between mb-6">
                   <div>
-                    <h2 className="text-foreground mb-1">Student Housing in Riyadh</h2>
+                    <h2 className="text-foreground mb-1">
+                      Student Housing in Riyadh
+                    </h2>
                     <p className="text-muted-foreground text-sm">
                       {items.length} properties found
                     </p>
                   </div>
 
                   <div className="flex items-center gap-2">
+                    {/* Mobile Filters trigger */}
                     <div className="md:hidden">
-                      <Sheet>
-                        <SheetTrigger asChild>
-                          <Button variant="outline" className="gap-2">
-                            <SlidersHorizontal className="w-4 h-4" />
-                            Filters
-                          </Button>
-                        </SheetTrigger>
-                        <SheetContent side="left" className="w-11/12 sm:max-w-sm">
-                          <SheetHeader>
-                            <SheetTitle>Filters</SheetTitle>
-                          </SheetHeader>
-                          <div className="px-4 py-4">
-                            <div className="mb-6">
-                              <Label className="mb-3 block">
-                                Price Range: {priceRange[0]} - {priceRange[1]} SAR
-                              </Label>
-                              <Slider
-                                min={0}
-                                max={5000}
-                                step={100}
-                                value={priceRange}
-                                onValueChange={setPriceRange}
-                                className="mb-2"
-                              />
-                            </div>
-                            <div className="mb-6">
-                              <Label className="mb-3 block">Property Type</Label>
-                              <div className="space-y-3">
-                                <div className="flex items-center gap-2">
-                                  <Checkbox
-                                    id="m-studio"
-                                    checked={typeStudio}
-                                    onCheckedChange={(v: boolean | "indeterminate") =>
-                                      setTypeStudio(!!v)
-                                    }
-                                  />
-                                  <label htmlFor="m-studio" className="text-sm">
-                                    Studio
-                                  </label>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <Checkbox
-                                    id="m-other"
-                                    checked={typeShared}
-                                    onCheckedChange={(v: boolean | "indeterminate") =>
-                                      setTypeShared(!!v)
-                                    }
-                                  />
-                                  <label htmlFor="m-other" className="text-sm">
-                                    Other
-                                  </label>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <Checkbox
-                                    id="m-apartment"
-                                    checked={typeApartment}
-                                    onCheckedChange={(v: boolean | "indeterminate") =>
-                                      setTypeApartment(!!v)
-                                    }
-                                  />
-                                  <label htmlFor="m-apartment" className="text-sm">
-                                    Apartment
-                                  </label>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="mb-6">
-                              <Label className="mb-3 block">Features</Label>
-                              <div className="space-y-3">
-                                <div className="flex items-center gap-2">
-                                  <Checkbox
-                                    id="m-available-only"
-                                    checked={availableOnly}
-                                    onCheckedChange={(v: boolean | "indeterminate") =>
-                                      setAvailableOnly(!!v)
-                                    }
-                                  />
-                                  <label htmlFor="m-available-only" className="text-sm">
-                                    Available Only
-                                  </label>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <Checkbox
-                                    id="m-female"
-                                    checked={femaleOnly}
-                                    onCheckedChange={(v: boolean | "indeterminate") =>
-                                      setFemaleOnly(!!v)
-                                    }
-                                  />
-                                  <label htmlFor="m-female" className="text-sm">
-                                    Female Only
-                                  </label>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <Checkbox
-                                    id="m-discount"
-                                    checked={studentDiscount}
-                                    onCheckedChange={(v: boolean | "indeterminate") =>
-                                      setStudentDiscount(!!v)
-                                    }
-                                  />
-                                  <label htmlFor="m-discount" className="text-sm">
-                                    Student Discount
-                                  </label>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <Checkbox
-                                    id="m-roommates"
-                                    checked={roommatesOnly}
-                                    onCheckedChange={(v: boolean | "indeterminate") =>
-                                      setRoommatesOnly(!!v)
-                                    }
-                                  />
-                                  <label htmlFor="m-roommates" className="text-sm">
-                                    Roommates Allowed
-                                  </label>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="space-y-3">
-                              <Button
-                                onClick={applyFilters}
-                                className="w-full bg-green-600 hover:bg-green-700"
-                              >
-                                Apply Filters
-                              </Button>
-                              <Button
-                                variant="outline"
-                                onClick={resetFilters}
-                                className="w-full"
-                              >
-                                Reset Filters
-                              </Button>
-                            </div>
-                          </div>
-                        </SheetContent>
-                      </Sheet>
+                      <Button
+                        variant="outline"
+                        className="gap-2"
+                        onClick={() => setMobileFiltersOpen(true)}
+                      >
+                        <SlidersHorizontal className="w-4 h-4" />
+                        Filters
+                      </Button>
                     </div>
+
                     <Button
                       variant="outline"
                       size="icon"
@@ -595,6 +536,163 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
                     </Button>
                   </div>
                 </div>
+
+                {/* Mobile Filters Overlay */}
+                {mobileFiltersOpen && (
+                  <div className="fixed inset-0 z-50 bg-black/40 flex justify-start md:hidden">
+                    <div className="h-full w-[85vw] max-w-sm bg-card shadow-xl p-4 overflow-y-auto">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-medium">Filters</h3>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setMobileFiltersOpen(false)}
+                        >
+                          ✕
+                        </Button>
+                      </div>
+
+                      {/* Price Range */}
+                      <div className="mb-6">
+                        <Label className="mb-3 block">
+                          Price Range: {priceRange[0]} - {priceRange[1]} SAR
+                        </Label>
+                        <Slider
+                          min={0}
+                          max={5000}
+                          step={100}
+                          value={priceRange}
+                          onValueChange={setPriceRange}
+                          className="mb-2"
+                        />
+                      </div>
+
+                      {/* Property Type */}
+                      <div className="mb-6">
+                        <Label className="mb-3 block">Property Type</Label>
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id="m-studio"
+                              checked={typeStudio}
+                              onCheckedChange={(
+                                v: boolean | "indeterminate"
+                              ) => setTypeStudio(!!v)}
+                            />
+                            <label htmlFor="m-studio" className="text-sm">
+                              Studio
+                            </label>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id="m-other"
+                              checked={typeShared}
+                              onCheckedChange={(
+                                v: boolean | "indeterminate"
+                              ) => setTypeShared(!!v)}
+                            />
+                            <label htmlFor="m-other" className="text-sm">
+                              Other
+                            </label>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id="m-apartment"
+                              checked={typeApartment}
+                              onCheckedChange={(
+                                v: boolean | "indeterminate"
+                              ) => setTypeApartment(!!v)}
+                            />
+                            <label htmlFor="m-apartment" className="text-sm">
+                              Apartment
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Features */}
+                      <div className="mb-6">
+                        <Label className="mb-3 block">Features</Label>
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id="m-available-only"
+                              checked={availableOnly}
+                              onCheckedChange={(
+                                v: boolean | "indeterminate"
+                              ) => setAvailableOnly(!!v)}
+                            />
+                            <label
+                              htmlFor="m-available-only"
+                              className="text-sm"
+                            >
+                              Available Only
+                            </label>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id="m-female"
+                              checked={femaleOnly}
+                              onCheckedChange={(
+                                v: boolean | "indeterminate"
+                              ) => setFemaleOnly(!!v)}
+                            />
+                            <label htmlFor="m-female" className="text-sm">
+                              Female Only
+                            </label>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id="m-discount"
+                              checked={studentDiscount}
+                              onCheckedChange={(
+                                v: boolean | "indeterminate"
+                              ) => setStudentDiscount(!!v)}
+                            />
+                            <label htmlFor="m-discount" className="text-sm">
+                              Student Discount
+                            </label>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id="m-roommates"
+                              checked={roommatesOnly}
+                              onCheckedChange={(
+                                v: boolean | "indeterminate"
+                              ) => setRoommatesOnly(!!v)}
+                            />
+                            <label htmlFor="m-roommates" className="text-sm">
+                              Roommates Allowed
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="space-y-3">
+                        <Button
+                          onClick={async () => {
+                            await applyFilters();
+                            setMobileFiltersOpen(false);
+                          }}
+                          className="w-full bg-green-600 hover:bg-green-700"
+                        >
+                          Apply Filters
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={async () => {
+                            await resetFilters();
+                            setMobileFiltersOpen(false);
+                          }}
+                          className="w-full"
+                        >
+                          Reset Filters
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {error && (
                   <div className="mb-4 text-red-600 text-sm">{error}</div>
@@ -641,6 +739,7 @@ export function SearchResults({ onNavigate }: SearchResultsProps) {
             </div>
           </TabsContent>
 
+          {/* FAVORITES TAB */}
           <TabsContent value="favorites">
             <div className="flex-1">
               <div className="flex items-center justify-between mb-6">
