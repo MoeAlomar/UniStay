@@ -1,24 +1,23 @@
 // frontend/src/components/Messages.tsx
+import type React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "./ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./ui/sheet";
 import { Input } from "./ui/input";
 import { ScrollArea } from "./ui/scroll-area";
 import { Send, Search, Plus } from "lucide-react";
-  import {
-    getTwilioClient,
-    listSubscribedConversations,
-    getConversationBySid,
-    getMessages,
-    getMessagesPage,
-    sendMessage as sendViaAPI,
-    markAllRead,
-    openOrCreateByUsername,
-    type Conversation,
-    type Message,
-  } from "../services/messaging";
+import {
+  getTwilioClient,
+  listSubscribedConversations,
+  getConversationBySid,
+  getMessagesPage,
+  sendMessage as sendViaAPI,
+  markAllRead,
+  openOrCreateByUsername,
+  type Conversation,
+  type Message,
+} from "../services/messaging";
 import type { User } from "../services/auth";
 import { getUserById } from "../services/auth";
 import UserProfileDialog from "./UserProfileDialog";
@@ -65,15 +64,18 @@ export function Messages() {
   const [selectedConversation, setSelectedConversation] =
     useState<Conversation | null>(null);
   const [convMap, setConvMap] = useState<Map<string, Conversation>>(new Map());
-  // Cache per-conversation avatar urls for the sidebar list
-  const [listAvatars, setListAvatars] = useState<Map<string, string | null>>(new Map());
+  const [listAvatars, setListAvatars] = useState<Map<string, string | null>>(
+    new Map()
+  );
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageText, setMessageText] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [myIdentity, setMyIdentity] = useState<string | undefined>(undefined);
   const [otherUser, setOtherUser] = useState<User | null>(null);
   const [showProfile, setShowProfile] = useState(false);
-  const [participants, setParticipants] = useState<Array<{ id: string; name: string; user: User | null }>>([]);
+  const [participants, setParticipants] = useState<
+    Array<{ id: string; name: string; user: User | null }>
+  >([]);
   const [showParticipants, setShowParticipants] = useState(false);
   const [profileUser, setProfileUser] = useState<User | null>(null);
 
@@ -88,6 +90,9 @@ export function Messages() {
   const [msgPage, setMsgPage] = useState<any | null>(null);
   const [hasMore, setHasMore] = useState<boolean>(false);
   const [loadingOlder, setLoadingOlder] = useState<boolean>(false);
+
+  // mobile conversations drawer
+  const [mobileListOpen, setMobileListOpen] = useState(false);
 
   const initialSidFromURL = (() => {
     try {
@@ -110,27 +115,24 @@ export function Messages() {
       const client = await getTwilioClient();
       if (!mounted) return;
 
-      // save identity
       setMyIdentity(client.user?.identity);
 
-      // keep identity updated in case SDK refreshes user
       const onUserUpdated = () => setMyIdentity(client.user?.identity);
       client.user?.on("updated", onUserUpdated);
 
       const items = await listSubscribedConversations();
       if (!mounted) return;
 
-      // Keep a map of sid -> Conversation for lightweight on-demand hydration later
       const map = new Map<string, Conversation>();
       for (const c of items) map.set(c.sid, c);
       setConvMap(map);
 
-      // Initial load: avoid network-heavy per-conversation calls.
-      // Only read attributes for naming; hydrate last message/unread later.
       const uiConvs = await Promise.all(
         items.map(async (c) => {
           let attrs: any = {};
-          try { attrs = await c.getAttributes(); } catch {}
+          try {
+            attrs = await c.getAttributes();
+          } catch {}
           const name = otherParticipantName(
             attrs,
             client.user?.identity,
@@ -164,7 +166,6 @@ export function Messages() {
         setSelectedSid(uiConvs[0].id);
       }
 
-      // live updates to the list
       const onAdded = async (c: Conversation) => {
         const attrs = (await c.getAttributes()) as any;
         const name = otherParticipantName(
@@ -207,7 +208,6 @@ export function Messages() {
       client.on("conversationAdded", onAdded);
       client.on("conversationRemoved", onRemoved);
 
-      // cleanup
       return () => {
         client.user?.removeListener("updated", onUserUpdated);
         client.removeListener("conversationAdded", onAdded);
@@ -221,13 +221,12 @@ export function Messages() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Progressive hydration: fetch last message + unread for first N conversations only,
-  // to reduce initial burst of network calls.
+  // Progressive hydration
   const hydrated = useRef<Set<string>>(new Set());
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const subset = convList.slice(0, 10); // hydrate top 10 only
+      const subset = convList.slice(0, 10);
       const tasks = subset
         .filter((c) => !hydrated.current.has(c.id))
         .map(async (ui) => {
@@ -282,13 +281,11 @@ export function Messages() {
       if (!mounted) return;
 
       setSelectedConversation(convo);
-      // Reset pagination state on conversation change
       setMsgPage(null);
       setHasMore(false);
       setLoadingOlder(false);
       skipAutoScrollRef.current = false;
 
-      // Initial page: latest 50 messages
       const page = await getMessagesPage(convo, 50);
       if (!mounted) return;
       setMsgPage(page);
@@ -298,7 +295,6 @@ export function Messages() {
 
       const onMsgAdded = async (m: Message) => {
         setMessages((prev) => [...prev, m]);
-        // Mark as read if it's not sent by me
         const client = await getTwilioClient();
         const me = client.user?.identity;
         if (me && String(m.author) !== String(me)) {
@@ -362,7 +358,6 @@ export function Messages() {
       setHasMore(!!older.hasPrevPage);
       skipAutoScrollRef.current = true;
       setMessages((prev) => [...(older.items || []), ...prev]);
-      // Preserve scroll position after prepending
       setTimeout(() => {
         const newHeight = viewport.scrollHeight;
         viewport.scrollTop = newHeight - prevHeight + prevTop + 1;
@@ -381,7 +376,7 @@ export function Messages() {
     }
   };
 
-  /** Load other participant's user profile for avatars and profile dialog */
+  /** Load other participant's user profile */
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -417,7 +412,7 @@ export function Messages() {
     };
   }, [selectedConversation]);
 
-  /** Load participants for group conversations (and one-to-one for per-message avatars) */
+  /** Load participants for group conversations */
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -427,23 +422,37 @@ export function Messages() {
           return;
         }
         const attrs = (await selectedConversation.getAttributes()) as any;
-        const map = attrs?.usernames && typeof attrs.usernames === "object" ? attrs.usernames : {};
+        const map =
+          attrs?.usernames && typeof attrs.usernames === "object"
+            ? attrs.usernames
+            : {};
         const ids: string[] = Object.keys(map);
-        if (!ids.length) { setParticipants([]); return; }
-        const results = await Promise.all(ids.map(async (id) => {
-          try {
-            const u = await getUserById(Number(id));
-            return { id, name: String(map[id] || u.username || "User"), user: u };
-          } catch {
-            return { id, name: String(map[id] || "User"), user: null };
-          }
-        }));
+        if (!ids.length) {
+          setParticipants([]);
+          return;
+        }
+        const results = await Promise.all(
+          ids.map(async (id) => {
+            try {
+              const u = await getUserById(Number(id));
+              return {
+                id,
+                name: String(map[id] || u.username || "User"),
+                user: u,
+              };
+            } catch {
+              return { id, name: String(map[id] || "User"), user: null };
+            }
+          })
+        );
         if (!cancelled) setParticipants(results);
       } catch {
         if (!cancelled) setParticipants([]);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [selectedConversation]);
 
   const participantsMap = useMemo(() => {
@@ -466,7 +475,7 @@ export function Messages() {
       const idx = src.indexOf(marker);
       const before = src.slice(0, idx + marker.length);
       const after = src.slice(idx + marker.length);
-      const hasTransforms = after[0] !== 'v' && after.includes('/');
+      const hasTransforms = after[0] !== "v" && after.includes("/");
       const transform = "c_fill,w_64,h_64,dpr_auto";
       if (hasTransforms) {
         return `${before}f_auto,q_auto,${transform},${after}`;
@@ -477,7 +486,7 @@ export function Messages() {
     }
   }
 
-  // Hydrate per-conversation avatars for the sidebar list (avoids using selected conversation participants)
+  // Hydrate per-conversation avatars
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -487,10 +496,16 @@ export function Messages() {
         const entries: Array<[string, string | null]> = [];
         for (const ui of convList) {
           const convo = convMap.get(ui.id);
-          if (!convo) { entries.push([ui.id, null]); continue; }
+          if (!convo) {
+            entries.push([ui.id, null]);
+            continue;
+          }
           try {
             const attrs = (await convo.getAttributes()) as any;
-            const map = attrs?.usernames && typeof attrs.usernames === "object" ? attrs.usernames : undefined;
+            const map =
+              attrs?.usernames && typeof attrs.usernames === "object"
+                ? attrs.usernames
+                : undefined;
             let otherId: string | undefined;
             if (map && myId) {
               const ids: string[] = Object.keys(map);
@@ -515,7 +530,9 @@ export function Messages() {
         if (!cancelled) setListAvatars(new Map());
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [convList, convMap]);
 
   /** Keep read state if tab becomes visible again */
@@ -573,7 +590,9 @@ export function Messages() {
     setSelectedSid(sid);
     const convo = await getConversationBySid(sid);
     await markAllRead(convo);
-    setConvList((prev) => prev.map((c) => (c.id === sid ? { ...c, unread: false } : c)));
+    setConvList((prev) =>
+      prev.map((c) => (c.id === sid ? { ...c, unread: false } : c))
+    );
     try {
       const u = new URL(window.location.href);
       u.searchParams.set("conversation", sid);
@@ -614,6 +633,7 @@ export function Messages() {
         <h1 className="mb-6 text-foreground">Messages</h1>
         <Card className="overflow-hidden">
           <div className="grid md:grid-cols-3 h-[calc(100vh-200px)]">
+            {/* Sidebar (desktop) */}
             <div className="hidden md:block border-r border-border bg-card">
               <div className="p-4 border-b border-border space-y-3">
                 <div className="relative">
@@ -634,7 +654,10 @@ export function Messages() {
                       value={newUsername}
                       onChange={(e) => setNewUsername(e.target.value)}
                     />
-                    <Button onClick={startChat} disabled={!newUsername.trim() || creating}>
+                    <Button
+                      onClick={startChat}
+                      disabled={!newUsername.trim() || creating}
+                    >
                       <Plus className="w-4 h-4 mr-1" />
                       Start
                     </Button>
@@ -660,7 +683,10 @@ export function Messages() {
                           {(() => {
                             const au = listAvatars.get(conversation.id);
                             return au ? (
-                              <AvatarImage src={transformAvatar(au)} alt={conversation.name} />
+                              <AvatarImage
+                                src={transformAvatar(au)}
+                                alt={conversation.name}
+                              />
                             ) : null;
                           })()}
                           <AvatarFallback>{conversation.avatar}</AvatarFallback>
@@ -697,63 +723,21 @@ export function Messages() {
               </ScrollArea>
             </div>
 
+            {/* Main panel */}
             <div className="md:col-span-2 flex flex-col bg-secondary">
               <div className="p-4 bg-card border-b border-border">
                 <div className="flex items-center gap-3">
+                  {/* Mobile conversations button */}
                   <div className="md:hidden">
-                    <Sheet>
-                      <SheetTrigger asChild>
-                        <Button variant="outline" size="sm">Conversations</Button>
-                      </SheetTrigger>
-                      <SheetContent side="left" className="w-11/12 sm:max-w-sm">
-                        <SheetHeader>
-                          <SheetTitle>Conversations</SheetTitle>
-                        </SheetHeader>
-                        <div className="px-4 py-4 space-y-4">
-                          <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                            <Input placeholder="Search conversations..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" />
-                          </div>
-                          <div className="flex gap-2">
-                            <Input placeholder="Other user's username..." value={newUsername} onChange={(e) => setNewUsername(e.target.value)} />
-                            <Button onClick={startChat} disabled={!newUsername.trim() || creating}>
-                              <Plus className="w-4 h-4 mr-1" />
-                              Start
-                            </Button>
-                          </div>
-                          {createErr ? <p className="text-xs text-red-600">{createErr}</p> : null}
-                          <div className="divide-y divide-border">
-                            {filteredConversations.map((conversation) => (
-                              <button key={conversation.id} onClick={() => handleSelectConversation(conversation.id)} className={`w-full p-4 text-left hover:bg-secondary transition-colors ${selectedSid === conversation.id ? "bg-secondary" : ""}`}>
-                                <div className="flex items-start gap-3">
-                                  <Avatar>
-                                    {(() => {
-                                      const au = listAvatars.get(conversation.id);
-                                      return au ? (
-                                        <AvatarImage src={transformAvatar(au)} alt={conversation.name} />
-                                      ) : null;
-                                    })()}
-                                    <AvatarFallback>{conversation.avatar}</AvatarFallback>
-                                  </Avatar>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center justify-between mb-1">
-                                      <span>{conversation.name}</span>
-                                      <span className="text-xs text-muted-foreground">{conversation.timestamp}</span>
-                                    </div>
-                                    {conversation.listingTitle && (
-                                      <p className="text-xs text-primary mb-1">{conversation.listingTitle}</p>
-                                    )}
-                                    <p className={`text-sm truncate ${conversation.unread ? "text-foreground" : "text-muted-foreground"}`}>{conversation.lastMessage || "No messages yet"}</p>
-                                  </div>
-                                  {conversation.unread && <div className="w-2 h-2 bg-primary rounded-full mt-2" />}
-                                </div>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </SheetContent>
-                    </Sheet>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setMobileListOpen(true)}
+                    >
+                      Conversations
+                    </Button>
                   </div>
+
                   {participants.length > 2 ? (
                     <div className="flex items-center gap-3">
                       <Avatar>
@@ -763,10 +747,17 @@ export function Messages() {
                       </Avatar>
                     </div>
                   ) : (
-                    <button type="button" onClick={() => otherUser && setShowProfile(true)} className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => otherUser && setShowProfile(true)}
+                      className="flex items-center gap-3"
+                    >
                       <Avatar>
                         {otherUser?.avatar_url ? (
-                          <AvatarImage src={transformAvatar(otherUser.avatar_url)} alt={otherUser?.username || "User"} />
+                          <AvatarImage
+                            src={transformAvatar(otherUser.avatar_url)}
+                            alt={otherUser?.username || "User"}
+                          />
                         ) : null}
                         <AvatarFallback>
                           {(activeUIConv?.avatar || "UN").slice(0, 2)}
@@ -781,18 +772,34 @@ export function Messages() {
                           {(() => {
                             const clientId = myIdentity;
                             const names = participants
-                              .filter((p) => (clientId ? String(p.id) !== String(clientId) : true))
+                              .filter((p) =>
+                                clientId
+                                  ? String(p.id) !== String(clientId)
+                                  : true
+                              )
                               .map((p) => p.name)
                               .join(", ");
-                            return names || activeUIConv?.name || "Group conversation";
+                            return (
+                              names ||
+                              activeUIConv?.name ||
+                              "Group conversation"
+                            );
                           })()}
                         </h3>
-                        <Button variant="outline" size="sm" onClick={() => setShowParticipants(true)}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowParticipants(true)}
+                        >
                           Participants
                         </Button>
                       </div>
                     ) : (
-                      <button type="button" className="text-left" onClick={() => otherUser && setShowProfile(true)}>
+                      <button
+                        type="button"
+                        className="text-left"
+                        onClick={() => otherUser && setShowProfile(true)}
+                      >
                         <h3 className="text-foreground">
                           {activeUIConv?.name || "Select a conversation"}
                         </h3>
@@ -807,32 +814,54 @@ export function Messages() {
                 </div>
               </div>
 
-              <ScrollArea className="flex-1 p-4" viewportRef={viewportRef} onScroll={handleScroll}>
+              <ScrollArea
+                className="flex-1 p-4"
+                viewportRef={viewportRef}
+                onScroll={handleScroll}
+              >
                 <div className="space-y-4">
                   {messages.map((m) => (
                     <div
                       key={m.sid}
-                      className={`flex items-start gap-2 ${isOwn(m) ? "justify-end" : "justify-start"}`}
+                      className={`flex items-start gap-2 ${
+                        isOwn(m) ? "justify-end" : "justify-start"
+                      }`}
                     >
-                      {!isOwn(m) && (
+                      {!isOwn(m) &&
                         (() => {
                           const authorId = String(m.author || "");
                           const p = participantsMap.get(authorId);
                           const au = p?.user?.avatar_url;
                           const initials = getInitials(p?.name);
                           return (
-                            <button type="button" onClick={() => p?.user && setProfileUser(p.user!)} className="mt-1">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                p?.user && setProfileUser(p.user!)
+                              }
+                              className="mt-1"
+                            >
                               <Avatar className="w-8 h-8">
                                 {au ? (
-                                  <AvatarImage src={transformAvatar(au)} alt={p?.user?.username || p?.name || "User"} />
+                                  <AvatarImage
+                                    src={transformAvatar(au)}
+                                    alt={
+                                      p?.user?.username ||
+                                      p?.name ||
+                                      "User"
+                                    }
+                                  />
                                 ) : null}
                                 <AvatarFallback>{initials}</AvatarFallback>
                               </Avatar>
                             </button>
                           );
-                        })()
-                      )}
-                      <div className={`max-w-[70%] ${isOwn(m) ? "order-2" : "order-1"}`}>
+                        })()}
+                      <div
+                        className={`max-w-[70%] ${
+                          isOwn(m) ? "order-2" : "order-1"
+                        }`}
+                      >
                         <div
                           className={`rounded-2xl px-4 py-2 ${
                             isOwn(m)
@@ -868,11 +897,17 @@ export function Messages() {
                     }
                     value={messageText}
                     onChange={(e) => setMessageText(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+                    onKeyDown={(e) =>
+                      e.key === "Enter" && handleSendMessage()
+                    }
                     className="flex-1"
                     disabled={!selectedSid}
                   />
-                  <Button onClick={handleSendMessage} size="icon" disabled={!selectedSid}>
+                  <Button
+                    onClick={handleSendMessage}
+                    size="icon"
+                    disabled={!selectedSid}
+                  >
                     <Send className="w-4 h-4" />
                   </Button>
                 </div>
@@ -880,9 +915,127 @@ export function Messages() {
             </div>
           </div>
         </Card>
-        {/* Profile dialog for other participant */}
-        <UserProfileDialog user={profileUser || otherUser} open={showProfile || !!profileUser} onOpenChange={(open) => { setShowProfile(open); if (!open) setProfileUser(null); }} />
-        {/* Participants dialog for group conversations */}
+
+        {/* Mobile conversations drawer */}
+        {mobileListOpen && (
+          <div className="fixed inset-0 z-[70] md:hidden">
+            {/* Backdrop */}
+            <div
+              className="absolute inset-0 bg-black/40"
+              onClick={() => setMobileListOpen(false)}
+            />
+            {/* Panel */}
+            <div className="absolute left-0 top-0 h-full w-11/12 sm:max-w-sm bg-background shadow-xl p-4 flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold">Conversations</h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setMobileListOpen(false)}
+                >
+                  Close
+                </Button>
+              </div>
+
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search conversations..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Other user's username..."
+                  value={newUsername}
+                  onChange={(e) => setNewUsername(e.target.value)}
+                />
+                <Button
+                  onClick={startChat}
+                  disabled={!newUsername.trim() || creating}
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  Start
+                </Button>
+              </div>
+              {createErr ? (
+                <p className="text-xs text-red-600">{createErr}</p>
+              ) : null}
+
+              <ScrollArea className="flex-1">
+                <div className="divide-y divide-border">
+                  {filteredConversations.map((conversation) => (
+                    <button
+                      key={conversation.id}
+                      onClick={() => {
+                        handleSelectConversation(conversation.id);
+                        setMobileListOpen(false);
+                      }}
+                      className={`w-full p-4 text-left hover:bg-secondary transition-colors ${
+                        selectedSid === conversation.id ? "bg-secondary" : ""
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <Avatar>
+                          {(() => {
+                            const au = listAvatars.get(conversation.id);
+                            return au ? (
+                              <AvatarImage
+                                src={transformAvatar(au)}
+                                alt={conversation.name}
+                              />
+                            ) : null;
+                          })()}
+                          <AvatarFallback>{conversation.avatar}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <span>{conversation.name}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {conversation.timestamp}
+                            </span>
+                          </div>
+                          {conversation.listingTitle && (
+                            <p className="text-xs text-primary mb-1">
+                              {conversation.listingTitle}
+                            </p>
+                          )}
+                          <p
+                            className={`text-sm truncate ${
+                              conversation.unread
+                                ? "text-foreground"
+                                : "text-muted-foreground"
+                            }`}
+                          >
+                            {conversation.lastMessage || "No messages yet"}
+                          </p>
+                        </div>
+                        {conversation.unread && (
+                          <div className="w-2 h-2 bg-primary rounded-full mt-2" />
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+          </div>
+        )}
+
+        {/* Profile dialog */}
+        <UserProfileDialog
+          user={profileUser || otherUser}
+          open={showProfile || !!profileUser}
+          onOpenChange={(open) => {
+            setShowProfile(open);
+            if (!open) setProfileUser(null);
+          }}
+        />
+
+        {/* Participants dialog */}
         <Dialog open={showParticipants} onOpenChange={setShowParticipants}>
           <DialogContent>
             <DialogHeader>
@@ -890,25 +1043,48 @@ export function Messages() {
             </DialogHeader>
             <div className="space-y-3">
               {participants.map((p) => (
-                <button key={p.id} type="button" className="w-full text-left" onClick={() => { if (p.user) { setProfileUser(p.user); setShowProfile(true); } }}>
+                <button
+                  key={p.id}
+                  type="button"
+                  className="w-full text-left"
+                  onClick={() => {
+                    if (p.user) {
+                      setProfileUser(p.user);
+                      setShowProfile(true);
+                    }
+                  }}
+                >
                   <div className="flex items-center gap-3 p-2 rounded-md hover:bg-secondary">
                     <Avatar>
                       {p.user?.avatar_url ? (
-                        <AvatarImage src={transformAvatar(p.user.avatar_url)} alt={p.user.username || p.name} />
+                        <AvatarImage
+                          src={transformAvatar(p.user.avatar_url)}
+                          alt={p.user.username || p.name}
+                        />
                       ) : null}
                       <AvatarFallback>{getInitials(p.name)}</AvatarFallback>
                     </Avatar>
                     <div>
-                      <div className="text-sm text-foreground">{p.user ? `${p.user.first_name} ${p.user.last_name}`.trim() || p.user.username : p.name}</div>
+                      <div className="text-sm text-foreground">
+                        {p.user
+                          ? `${p.user.first_name} ${
+                              p.user.last_name || ""
+                            }`.trim() || p.user.username
+                          : p.name}
+                      </div>
                       {p.user?.username && (
-                        <div className="text-xs text-muted-foreground">@{p.user.username}</div>
+                        <div className="text-xs text-muted-foreground">
+                          @{p.user.username}
+                        </div>
                       )}
                     </div>
                   </div>
                 </button>
               ))}
               {participants.length === 0 && (
-                <div className="text-sm text-muted-foreground">No participants found.</div>
+                <div className="text-sm text-muted-foreground">
+                  No participants found.
+                </div>
               )}
             </div>
           </DialogContent>
