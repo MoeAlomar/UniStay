@@ -17,6 +17,7 @@ import {
   openOrCreateByUsername,
   type Conversation,
   type Message,
+  resetTwilioClient, // 🔥 import this
 } from "../services/messaging";
 import type { User } from "../services/auth";
 import { getUserById } from "../services/auth";
@@ -112,8 +113,25 @@ export function Messages() {
   useEffect(() => {
     let mounted = true;
     (async () => {
-      const client = await getTwilioClient();
+      // 🔍 Self-heal: make sure Twilio identity matches currentUserId
+      let client = await getTwilioClient();
       if (!mounted) return;
+
+      try {
+        const storedId = localStorage.getItem("currentUserId");
+        const identity = client.user?.identity
+          ? String(client.user.identity)
+          : undefined;
+
+        if (storedId && identity && identity !== storedId) {
+          // Identity mismatch → reset client and recreate
+          resetTwilioClient();
+          client = await getTwilioClient();
+          if (!mounted) return;
+        }
+      } catch {
+        // ignore localStorage errors
+      }
 
       setMyIdentity(client.user?.identity);
 
@@ -469,7 +487,12 @@ export function Messages() {
 
   function transformAvatar(url?: string | null): string | undefined {
     const src = typeof url === "string" ? url : undefined;
-    if (!src || !src.includes("res.cloudinary.com") || !src.includes("/image/upload/")) return src;
+    if (
+      !src ||
+      !src.includes("res.cloudinary.com") ||
+      !src.includes("/image/upload/")
+    )
+      return src;
     try {
       const marker = "/image/upload/";
       const idx = src.indexOf(marker);
